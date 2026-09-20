@@ -1,21 +1,13 @@
-JeevSetu v0.1 — Build 3.8 — HTTPS Voice Diagnostic
+JeevSetu v0.1 — Build 3.9
 
-Purpose:
-Build 3.8 keeps the Build 3.7 HTTPS voice architecture but adds a dedicated
-"Test Voice Service" diagnostic.
+Purpose: Hindi voice-first patient interaction with an English doctor-facing Clinical Note Preview.
 
-Testing on Samsung tablet:
-1. Extract the ZIP.
-2. Open JeevSetu from the HTTPS website (not file://).
-3. Tap START HPI.
-4. Tap "🎙️ Test Microphone".
-5. Tap "🔎 Test Voice Service".
-6. If it says Speech service STARTED, speak a short Hindi sentence.
-7. Send a screenshot of the diagnostic result.
+Build 3.9 changes:
+- Patient questions and Hindi voice interaction are unchanged.
+- Doctor-facing Clinical Note Preview is generated in English.
+- Structured HPI continues to preserve the patient’s original Hindi answers.
+- HTTPS / microphone / Hindi speech diagnostics are retained.
 
-Important:
-- Do NOT tap Test Voice Service from file:// mode.
-- The diagnostic calls SpeechRecognition.start() directly from the button tap.
-- It does not await getUserMedia before starting speech recognition.
-- This helps distinguish ordinary microphone permission from Chrome/Android
-  Web Speech service refusal.
+Deployment:
+Upload the contents of this build (especially index.html) to the GitHub Pages repository.
+Do not open the ZIP directly for voice testing; use the HTTPS GitHub Pages URL.
