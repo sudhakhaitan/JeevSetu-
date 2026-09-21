@@ -1,0 +1,621 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JeevSetu v0.1 — Build 3.9 FIXED V2-5-17</title>
+<style>
+body{font-family:Arial,sans-serif;margin:0;background:#f4f8f6;color:#173b35}
+header{background:#176653;color:white;padding:16px 18px;font-size:22px;font-weight:700}
+.wrap{max-width:900px;margin:auto;padding:16px}
+.card{background:white;border-radius:14px;padding:18px;margin:14px 0;box-shadow:0 2px 8px #0001}
+label{display:block;font-weight:700;margin:12px 0 6px}
+input,select,textarea{width:100%;box-sizing:border-box;padding:12px;border:1px solid #c8d7d2;border-radius:9px;font-size:16px}
+button{border:0;border-radius:9px;padding:12px 18px;font-size:16px;font-weight:700;background:#176653;color:white;margin:7px 5px 7px 0}
+button.secondary{background:#dfece8;color:#173b35}
+button.voice{background:#b97816}
+.hidden{display:none}
+.q{font-size:21px;font-weight:700;line-height:1.4;margin:12px 0}
+.sub{color:#61736e;font-size:14px}
+.answer{font-size:17px;background:#f4f8f6;padding:12px;border-radius:9px;margin-top:10px}
+.badge{display:inline-block;background:#e5f2ee;padding:5px 9px;border-radius:20px;margin:3px;font-size:13px}
+pre{white-space:pre-wrap;background:#f4f8f6;padding:14px;border-radius:9px}
+.warn{background:#fff4df;padding:12px;border-radius:9px;color:#714d10}
+</style>
+</head>
+<body>
+<header>JeevSetu — Build 3.9 FIXED V2-5-17 FRESH · Hindi Patient Interaction · English Clinical Note</header>
+<div class="wrap"><div class="card" style="padding:10px;margin:10px 0;background:#eef7f3"><b id="jsStatus">⏳ Loading JeevSetu…</b></div>
+
+<div class="card" id="patientCard">
+<h2>Patient / Encounter</h2>
+<label>Patient Code</label><input id="pid" placeholder="e.g. JS-MP-000001">
+<label>Mobile Number</label><input id="mobile" placeholder="10 digit mobile number">
+<button id="startHpiBtn" type="button">START HPI</button>
+<div class="sub">Prototype: patient lookup is local to this browser.</div>
+</div>
+
+<div class="card hidden" id="chatCard">
+<div>
+<span class="badge">Hindi voice-first</span>
+<span class="badge">Clinical AI</span>
+<span class="badge">BHASHINI language layer</span>
+</div>
+<h2>JeevSetu is asking</h2>
+<div class="q" id="question"></div>
+<div class="sub" id="intent"></div>
+<div class="warn"><b>महत्वपूर्ण:</b> Hindi voice input के लिए JeevSetu को <b>HTTPS website</b> के रूप में Chrome में खोलना आवश्यक है। ZIP को Files से सीधे खोलने पर Chrome microphone/speech service को अनुमति नहीं दे सकता। पहले <b>Test Microphone</b> दबाएँ, फिर <b>🎤 मरीज बोलें</b> दबाएँ।</div>
+
+<button class="voice" id="speakBtn" type="button">🔊 सुनाएँ</button>
+<button class="voice" id="voiceBtn" type="button">🎤 मरीज बोलें</button>
+<button class="secondary" id="micTestBtn" type="button">🎙️ Test Microphone</button>
+<button class="secondary" id="voiceDiagBtn" type="button">🔎 Test Voice Service</button>
+
+<label>उत्तर / Answer</label>
+<textarea id="answer" rows="3" placeholder="मरीज बोल सकता है या यहाँ उत्तर लिखा जा सकता है"></textarea>
+<button id="saveNextBtn" type="button">SAVE & NEXT</button>
+<button class="secondary" id="skipBtn" type="button">Not known / पता नहीं</button>
+
+<div class="answer" id="lastAnswer"></div>
+</div>
+
+<div class="card hidden" id="summaryCard">
+<h2>Structured HPI</h2>
+<div id="structured"></div>
+<h2>Clinical Note Preview</h2>
+<button class="secondary" onclick="configureBhashini()">⚙️ Configure BHASHINI Translation</button>
+<pre id="note"></pre>
+<button id="restartBtn" type="button">NEW TEST</button>
+</div>
+
+</div>
+
+<script>
+/*
+  Build 3.9 architecture:
+  JeevSetu Clinical Agent = decides question and interprets answer.
+  BHASHINI adapter = speech/language layer.
+  This browser prototype uses Web Speech API where available.
+  BHASHINI text translation is available as an optional browser-side adapter; the key is kept in localStorage and is never written into the ZIP.
+*/
+
+const questions = [
+ {key:"complaint", q:"आपको सबसे ज्यादा तकलीफ़ किस चीज़ की है?", intent:"Chief complaint"},
+ {key:"duration", q:"यह तकलीफ़ कब से है?", intent:"Duration"},
+ {key:"onset", q:"यह तकलीफ़ अचानक शुरू हुई या धीरे-धीरे?", intent:"Onset"},
+ {key:"course", q:"यह तकलीफ़ लगातार रहती है या बीच-बीच में आती है?", intent:"Course"},
+ {key:"night_change", q:"रात में यह तकलीफ़ बढ़ती है, कम होती है या वैसी ही रहती है?", intent:"Time variation"},
+ {key:"severity", q:"इस तकलीफ़ की तीव्रता कैसी है—हल्की, मध्यम या बहुत ज्यादा?", intent:"Severity"},
+ {key:"associated", q:"इसके साथ और कौन-कौन सी तकलीफ़ होती है?", intent:"Associated symptoms"},
+ {key:"relieving", q:"किस चीज़ से यह तकलीफ़ बढ़ती या कम होती है?", intent:"Aggravating / relieving factors"},
+ {key:"treatment", q:"इसके लिए पहले कोई दवा या इलाज लिया है?", intent:"Previous treatment"},
+ {key:"negative", q:"क्या कोई महत्वपूर्ण लक्षण ऐसा है जो आपको बिल्कुल नहीं है?", intent:"Relevant negative symptoms"}
+];
+
+let idx=0, answers={};
+
+function startEncounter(){
+  idx=0; answers={};
+  document.getElementById("patientCard").classList.add("hidden");
+  document.getElementById("chatCard").classList.remove("hidden");
+  document.getElementById("summaryCard").classList.add("hidden");
+  showQuestion();
+}
+
+function showQuestion(){
+  const q=questions[idx];
+  document.getElementById("question").textContent=q.q;
+  document.getElementById("intent").textContent="Clinical intent: "+q.intent;
+  document.getElementById("answer").value="";
+  document.getElementById("lastAnswer").textContent="";
+}
+
+function submitAnswer(){
+  const v=document.getElementById("answer").value.trim();
+  if(!v){alert("कृपया उत्तर बोलें, लिखें या 'पता नहीं' चुनें।");return;}
+  answers[questions[idx].key]=v;
+  document.getElementById("lastAnswer").textContent="Saved: "+v;
+  next();
+}
+
+function skipQuestion(){
+  answers[questions[idx].key]="Unknown / Not available";
+  next();
+}
+
+function next(){
+  idx++;
+  if(idx>=questions.length){finish();} else showQuestion();
+}
+
+function finish(){
+  document.getElementById("chatCard").classList.add("hidden");
+  document.getElementById("summaryCard").classList.remove("hidden");
+  render();
+}
+
+const BHASHINI_ENDPOINT="https://dhruva-api.bhashini.gov.in/services/inference/pipeline";
+const BHASHINI_SERVICE_ID="ai4bharat/indictrans-v2-all-gpu--t4";
+
+function getBhashiniKey(){
+  try{return localStorage.getItem("jeevsetu_bhashini_key")||"";}catch(e){return "";}
+}
+function configureBhashini(){
+  const current=getBhashiniKey();
+  const key=prompt("Enter your BHASHINI inference API key. It is stored only in this browser, not in the JeevSetu ZIP/GitHub files.",current);
+  if(key===null) return;
+  try{localStorage.setItem("jeevsetu_bhashini_key",key.trim());}catch(e){}
+  alert(key.trim()?"BHASHINI key saved in this browser.":"BHASHINI key cleared.");
+}
+
+async function bhashiniTranslateBatch(texts){
+  const key=getBhashiniKey();
+  if(!key || !texts.length) return {};
+  try{
+    const res=await fetch(BHASHINI_ENDPOINT,{
+      method:"POST",
+      headers:{"Accept":"*/*","Authorization":key,"Content-Type":"application/json"},
+      body:JSON.stringify({
+        pipelineTasks:[{taskType:"translation",config:{language:{sourceLanguage:"hi",targetLanguage:"en"},serviceId:BHASHINI_SERVICE_ID}}],
+        inputData:{input:texts.map(t=>({source:t}))}
+      })
+    });
+    if(!res.ok) throw new Error("BHASHINI HTTP "+res.status);
+    const data=await res.json();
+    const out=(data.pipelineResponse&&data.pipelineResponse[0]&&data.pipelineResponse[0].output)||[];
+    const map={};
+    texts.forEach((t,i)=>{if(out[i]&&out[i].target) map[t]=String(out[i].target).trim();});
+    return map;
+  }catch(e){
+    console.warn("BHASHINI translation unavailable; using safe local formatter.",e);
+    return {};
+  }
+}
+
+function clinicalEnglish(text){
+  // V2-5-18: deterministic doctor-facing Hindi -> English formatter.
+  // IMPORTANT: this function is used ONLY by Clinical Note Preview.
+  if(text===undefined || text===null) return "Not recorded";
+  let s=String(text).replace(/[।]/g,'.').replace(/[，،]/g,',').replace(/\s+/g,' ').trim();
+  if(!s) return "Not recorded";
+
+  // Exact/common clinical answers first.
+  const exact=[
+    [/^(?:पता नहीं|नहीं पता|मालूम नहीं|जानकारी नहीं)$/i,"Unknown / not available"],
+    [/^(?:कोई शिकायत|कोई लक्षण|कोई समस्या) नहीं(?: है)?$/i,"No complaint / no symptoms"],
+    [/^(?:नहीं,?\s*)?(?:ऐसा|ऐसे) कोई लक्षण नहीं(?: है)?$/i,"No such symptoms"],
+    [/^(?:कोई )?(?:दवा|दवाई) नहीं ली(?: है)?$/i,"No medication taken"],
+    [/^(?:कोई )?इलाज नहीं लिया(?: है)?$/i,"No prior treatment"],
+    [/^नहीं$/i,"No"], [/^हाँ$|^हां$/i,"Yes"],
+    [/^अचानक शुरू हुआ(?: है)?$|^अचानक शुरू हुई(?: है)?$/i,"Started suddenly"],
+    [/^धीरे[- ]?धीरे शुरू हुआ(?: है)?$|^धीरे[- ]?धीरे शुरू हुई(?: है)?$/i,"Started gradually"],
+    [/^लगातार रहता(?: है)?$|^लगातार रहती(?: है)?$/i,"Constant"],
+    [/^बीच[- ]?बीच में आता(?: है)?$|^बीच[- ]?बीच में आती(?: है)?$/i,"Intermittent"],
+    [/^रात में (?:बढ़ता|बढ़ती|बढ़ जाता|बढ़ जाती) है$/i,"Worse at night"],
+    [/^रात में (?:कम होता|कम होती|कम हो जाता|कम हो जाती) है$/i,"Better at night"],
+    [/^रात में (?:वैसा|वैसी|वैसे) ही रहता(?: है)?$/i,"Unchanged at night"],
+    [/^रात में (?:वैसा|वैसी|वैसे) ही रहती(?: है)?$/i,"Unchanged at night"],
+    [/^रात में वैसे ही रहती है$/i,"Unchanged at night"],
+    [/^(?:बहुत तेज|तेज|बहुत ज्यादा|बहुत अधिक) दर्द है$/i,"Severe pain"],
+    [/^(?:हल्का|हल्की) दर्द है$/i,"Mild pain"],
+    [/^(?:मध्यम|मध्य) दर्द है$/i,"Moderate pain"],
+    [/^(?:बहुत तेज|तेज|बहुत ज्यादा|बहुत अधिक)$/i,"Severe"],
+    [/^(?:हल्का|हल्की)$/i,"Mild"], [/^(?:मध्यम|मध्य)$/i,"Moderate"],
+    [/^(?:मुझे )?बुखार नहीं है$/i,"No fever"],
+    [/^(?:मुझे )?दर्द नहीं है$/i,"No pain"],
+    [/^(?:मुझे )?उल्टी नहीं होती(?: है)?$/i,"No vomiting"],
+    [/^(?:मुझे )?चक्कर नहीं आते(?: हैं)?$/i,"No dizziness"],
+    [/^(?:मुझे )?बुखार(?: है)?$/i,"Fever"],
+    [/^(?:मुझे )?सीने में दर्द है$/i,"Chest pain"],
+    [/^(?:मुझे )?सीने में भारीपन है$/i,"Chest heaviness"],
+    [/^(?:मुझे )?सांस(?: लेने)? में दिक्कत है$/i,"Breathing difficulty"],
+    [/^(?:मुझे )?पेट में दर्द है$/i,"Abdominal pain"],
+    [/^(?:मुझे )?सिर(?: में)? दर्द है$/i,"Headache"],
+    [/^(?:मुझे )?कमर में दर्द है$/i,"Back pain"],
+    [/^(?:मुझे )?(?:पैर|पांव|पाँव|पैरों|पांवों|पाँवों) में दर्द है$/i,"Leg/foot pain"],
+    [/^(?:मुझे )?जोड़ों में दर्द है$/i,"Joint pain"],
+    [/^(?:मुझे )?गले में दर्द है$/i,"Throat pain"],
+    [/^(?:मुझे )?गले में खराश है$/i,"Throat irritation"],
+    [/^(?:मुझे )?खांसी है$|^(?:मुझे )?खाँसी है$/i,"Cough"],
+    [/^(?:मुझे )?जुकाम है$/i,"Cold"],
+    [/^(?:मुझे )?उल्टी हो रही है$/i,"Vomiting"],
+    [/^(?:मुझे )?मतली हो रही है$/i,"Nausea"],
+    [/^(?:मुझे )?चक्कर आ रहे हैं$/i,"Dizziness"],
+    [/^(?:मुझे )?कमजोरी(?: लग रही है| है)$/i,"Weakness"],
+    [/^(?:मुझे )?थकान है$/i,"Fatigue"],
+    [/^(?:मुझे )?भूख नहीं लगती$/i,"Poor appetite"],
+    [/^(?:मुझे )?पेशाब में जलन है$/i,"Burning urination"],
+    [/^(?:मुझे )?बार-बार पेशाब आता है$/i,"Frequent urination"],
+    [/^(?:मुझे )?कब्ज है$/i,"Constipation"],
+    [/^(?:मुझे )?दस्त हैं$/i,"Diarrhea"],
+    [/^(?:मुझे )?खुजली है$/i,"Itching"],
+    [/^(?:मुझे )?सूजन है$/i,"Swelling"],
+    [/^(?:मुझे )?जलन होती है$/i,"Burning sensation"],
+    [/^दबाने से (?:ठीक|आराम) होता है$/i,"Improves with pressure"],
+    [/^दबाने पर (?:ठीक|आराम) होता है$/i,"Improves with pressure"]
+  ];
+  for(const [re,en] of exact) if(re.test(s)) return en;
+
+  // Duration must remain clean: "10 दिनों से" -> "10 days".
+  let d=s
+    .replace(/(\d+(?:[.,]\d+)?)\s*(दिन|दिनों)/g,'$1 days')
+    .replace(/(\d+(?:[.,]\d+)?)\s*(हफ्ते|सप्ताह|हफ्तों)/g,'$1 weeks')
+    .replace(/(\d+(?:[.,]\d+)?)\s*(महीने|महीनों)/g,'$1 months')
+    .replace(/(\d+(?:[.,]\d+)?)\s*(साल|वर्ष|सालों)/g,'$1 years')
+    .replace(/\s*(से|से ही|से अब तक|से लेकर)\s*/g,' ')
+    .replace(/^\s*(लगभग|करीब)\s*/,'').trim();
+  if(d!==s && !/[\u0900-\u097F]/.test(d)) return d.replace(/[.,;:]+$/,'').trim();
+
+  // Common full-sentence clinical constructions.
+  const rules=[
+    [/^मुझे\s+(.+?)\s+हो\s+रहा(?:\s+है)?$/,'I have $1'],
+    [/^मुझे\s+(.+?)\s+हो\s+रही(?:\s+है)?$/,'I have $1'],
+    [/^मुझे\s+(.+?)\s+होते\s+हैं$/,'I have $1'],
+    [/^मुझे\s+(.+?)\s+है$/,'I have $1'],
+    [/^(.+?)\s+से\s+(?:ठीक|आराम)\s+होता\s+है$/,'Improves with $1'],
+    [/^(.+?)\s+से\s+(?:ठीक|आराम)\s+होती\s+है$/,'Improves with $1'],
+    [/^(.+?)\s+से\s+बढ़ता\s+है$/,'Worse with $1'],
+    [/^(.+?)\s+से\s+बढ़ती\s+है$/,'Worse with $1'],
+    [/^(.+?)\s+से\s+कम\s+होता\s+है$/,'Better with $1'],
+    [/^(.+?)\s+से\s+कम\s+होती\s+है$/,'Better with $1'],
+    [/^(?:इसके साथ|साथ में)\s+(.+)$/,'Associated symptoms: $1'],
+    [/^(?:दवा|दवाई)\s+(.+)$/,'Medication: $1'],
+    [/^(?:इलाज|उपचार)\s+(.+)$/,'Treatment: $1']
+  ];
+  const terms=[
+    [/सिर|सर/g,'head'],[/सीने|सीना/g,'chest'],[/पेट/g,'abdomen'],[/कमर/g,'back'],
+    [/पैर|पांव|पाँव/g,'leg/foot'],[/गले|गला/g,'throat'],[/जोड़ों|जोड़/g,'joints'],
+    [/दर्द/g,'pain'],[/बुखार/g,'fever'],[/खांसी|खाँसी/g,'cough'],[/जुकाम/g,'cold'],
+    [/उल्टी/g,'vomiting'],[/मतली/g,'nausea'],[/चक्कर/g,'dizziness'],[/कमजोरी/g,'weakness'],
+    [/थकान/g,'fatigue'],[/भूख/g,'appetite'],[/पेशाब/g,'urination'],[/जलन/g,'burning'],
+    [/कब्ज/g,'constipation'],[/दस्त/g,'diarrhea'],[/खुजली/g,'itching'],[/सूजन/g,'swelling'],
+    [/सांस|साँस/g,'breathing'],[/दिक्कत|तकलीफ|तकलीफ़|परेशानी/g,'difficulty'],
+    [/हल्का|हल्की/g,'mild'],[/मध्यम|मध्य/g,'moderate'],[/तेज|ज़्यादा|ज्यादा|अधिक/g,'severe'],
+    [/बहुत/g,'very'],[/नहीं/g,'no'],[/कम/g,'less'],[/बढ़ता|बढ़ती|बढ़ना|बढ़े/g,'increases'],
+    [/घटता|घटती|कम होता|कम होती/g,'decreases'],[/रात/g,'night'],[/सुबह/g,'morning'],
+    [/शाम/g,'evening'],[/लगातार/g,'constant'],[/कभी-कभी|बीच-बीच में/g,'intermittent'],
+    [/अचानक/g,'suddenly'],[/धीरे-धीरे|धीरे धीरे/g,'gradually'],[/ठीक|आराम/g,'better'],
+    [/दबाने|दबाव/g,'pressure'],[/से/g,'with'],[/है|हैं|होती|होता|होते/g,'']
+  ];
+  function translatePart(part){
+    let x=part;
+    for(const [re,en] of terms) x=x.replace(re,en);
+    return x.replace(/\s+/g,' ').replace(/\s+([,.])/g,'$1').trim();
+  }
+  for(const [re,template] of rules){
+    const m=s.match(re); if(!m) continue;
+    const part=translatePart(m[1]);
+    if(part && !/[\u0900-\u097F]/.test(part)) return template.replace('$1',part);
+  }
+
+  let x=translatePart(s);
+  if(x && !/[\u0900-\u097F]/.test(x)) return x.replace(/[.,;:]+$/,'').trim();
+
+  // Return original only when it cannot be safely interpreted locally;
+  // render() will then send it to BHASHINI when configured.
+  return s;
+}
+
+async function render(){
+  const labels={
+    complaint:"Chief complaint",duration:"Duration",onset:"Onset",course:"Course",
+    night_change:"Night/time variation",severity:"Severity",associated:"Associated symptoms",
+    relieving:"Aggravating/relieving factors",treatment:"Previous treatment",
+    negative:"Relevant negative symptoms"
+  };
+  // IMPORTANT V2-5-17 isolation:
+  // Structured HPI is a patient-facing record and must NOT use the
+  // Clinical Note formatter. This prevents formatter rules from leaking
+  // back into HPI display/answer handling.
+  let h="";
+  for(const q of questions){
+    const raw = answers[q.key] || "Not recorded";
+    h += `<p><b>${labels[q.key]}:</b> ${escapeHtml(raw)}</p>`;
+  }
+  document.getElementById("structured").innerHTML=h;
+
+  // The translation/formatting pipeline below is used ONLY for the
+  // doctor-facing Clinical Note Preview.
+  const values=[answers.complaint,answers.duration,answers.onset,answers.course,answers.night_change,answers.severity,answers.associated,answers.relieving,answers.treatment,answers.negative];
+  const unresolved=[];
+  for(const v of values){
+    if(v && /[\u0900-\u097F]/.test(String(v))){
+      const local=clinicalEnglish(v);
+      if(/[\u0900-\u097F]/.test(local) && !unresolved.includes(String(v))) unresolved.push(String(v));
+    }
+  }
+  const bhMap=await bhashiniTranslateBatch(unresolved);
+
+  function noteValue(v){
+    if(v===undefined || v===null || !String(v).trim()) return "Not recorded";
+    const raw=String(v).trim();
+    // BHASHINI is preferred when local formatter cannot fully translate.
+    const local=clinicalEnglish(raw);
+    if(bhMap[raw]) return bhMap[raw];
+    return local;
+  }
+
+  const c=answers.complaint||"Chief complaint not specified";
+  let note="CHIEF COMPLAINT\n• "+noteValue(c);
+  note += "\n\nHISTORY OF PRESENT ILLNESS";
+  note += "\n• Duration: "+noteValue(answers.duration);
+  note += "\n• Onset: "+noteValue(answers.onset);
+  note += "\n• Course: "+noteValue(answers.course);
+  note += "\n• Time variation: "+noteValue(answers.night_change);
+  note += "\n• Severity: "+noteValue(answers.severity);
+  note += "\n• Associated symptoms: "+noteValue(answers.associated);
+  note += "\n• Aggravating/relieving factors: "+noteValue(answers.relieving);
+  note += "\n• Previous treatment: "+noteValue(answers.treatment);
+  note += "\n• Relevant negatives: "+noteValue(answers.negative);
+  document.getElementById("note").textContent=note;
+}
+
+
+function speakQuestion(){
+  const text=document.getElementById("question").textContent;
+  if(!("speechSynthesis" in window)){
+    document.getElementById("lastAnswer").textContent="Hindi voice output is not available in this browser.";
+    return;
+  }
+  const u=new SpeechSynthesisUtterance(text);
+  u.lang="hi-IN";
+  u.rate=0.95;
+  speechSynthesis.cancel();
+  speechSynthesis.speak(u);
+}
+
+async function testMicrophone(){
+  const box=document.getElementById("lastAnswer");
+  box.textContent="⏳ माइक्रोफोन जाँच रहा हूँ… कृपया 2–3 सेकंड प्रतीक्षा करें।";
+
+  if(location.protocol==="file:" || !window.isSecureContext){
+    box.textContent="❌ यह ZIP/file mode है। Hindi voice के लिए JeevSetu को HTTPS website (जैसे GitHub Pages) पर खोलें। ZIP को सीधे Files से खोलने पर microphone नहीं चलेगा।";
+    return false;
+  }
+
+  if(!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia!=="function"){
+    box.textContent="❌ Chrome ने microphone API उपलब्ध नहीं कराया। Chrome को बंद करके फिर खोलें और JeevSetu दोबारा खोलें.";
+    return false;
+  }
+
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    const tracks=stream.getTracks();
+    tracks.forEach(t=>t.stop());
+
+    let permText="";
+    if(navigator.permissions && navigator.permissions.query){
+      try{
+        const p=await navigator.permissions.query({name:"microphone"});
+        permText = p.state==="granted" ? " अनुमति ON है।" :
+                   p.state==="prompt" ? " Chrome अनुमति माँग सकता है।" :
+                   " अनुमति BLOCK है।";
+      }catch(_){}
+    }
+
+    box.textContent="✅ Microphone काम कर रहा है।"+permText+" अब 🎤 मरीज बोलें दबाएँ और हिंदी में बोलें.";
+    return true;
+  }catch(e){
+    const n=e && e.name ? e.name : "unknown";
+    let msg="❌ Microphone test failed: "+n+".";
+    if(n==="NotAllowedError" || n==="PermissionDeniedError"){
+      msg="❌ Microphone permission BLOCK है। Chrome > Settings > Site settings > Microphone > Allow करें, फिर JeevSetu reload करें.";
+    }else if(n==="NotFoundError"){
+      msg="❌ कोई microphone नहीं मिला। Tablet का microphone और Android microphone permission जाँचें.";
+    }else if(n==="NotReadableError"){
+      msg="❌ Microphone किसी दूसरे app द्वारा इस्तेमाल हो रहा है। दूसरी voice/video app बंद करके फिर कोशिश करें.";
+    }else if(n==="SecurityError"){
+      msg="❌ Chrome security ने microphone रोक दिया। Chrome में JeevSetu फिर से खोलें.";
+    }
+    box.textContent=msg;
+    return false;
+  }
+}
+
+
+async function testVoiceService(){
+  const box=document.getElementById("lastAnswer");
+  const lines=[];
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+
+  lines.push("JeevSetu Voice Diagnostic — Build 3.9");
+  lines.push("Protocol: "+location.protocol);
+  lines.push("Secure context: "+(window.isSecureContext ? "YES" : "NO"));
+  lines.push("Browser: "+navigator.userAgent);
+  lines.push("SpeechRecognition API: "+(SR ? "AVAILABLE" : "NOT AVAILABLE"));
+
+  if(navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia==="function"){
+    lines.push("Microphone API: AVAILABLE");
+  }else{
+    lines.push("Microphone API: NOT AVAILABLE");
+  }
+
+  if(navigator.permissions && navigator.permissions.query){
+    try{
+      const p=await navigator.permissions.query({name:"microphone"});
+      lines.push("Microphone permission: "+p.state);
+    }catch(e){
+      lines.push("Microphone permission: Chrome did not expose permission state");
+    }
+  }
+
+  if(SR){
+    try{
+      const r=new SR();
+      r.lang="hi-IN";
+      r.interimResults=false;
+      r.continuous=false;
+      r.maxAlternatives=1;
+
+      let finished=false;
+      let timer=null;
+
+      r.onstart=()=>{
+        lines.push("Speech service: STARTED");
+        lines.push("RESULT: Chrome accepted the voice-recognition request.");
+        box.textContent=lines.join("\\n");
+        clearTimeout(timer);
+        setTimeout(()=>{ try{r.stop();}catch(_){} },2500);
+      };
+
+      r.onresult=(e)=>{
+        finished=true;
+        const t=e.results?.[0]?.[0]?.transcript || "";
+        lines.push("Speech result: "+(t || "(empty)"));
+        box.textContent=lines.join("\\n");
+      };
+
+      r.onerror=(e)=>{
+        finished=true;
+        lines.push("Speech error: "+(e.error||"unknown"));
+        if(e.error==="not-allowed" || e.error==="service-not-allowed"){
+          lines.push("Meaning: Chrome/Android speech-recognition service refused the request.");
+          lines.push("This is different from ordinary microphone permission.");
+        }else if(e.error==="network"){
+          lines.push("Meaning: speech service/network could not be reached.");
+        }else if(e.error==="audio-capture"){
+          lines.push("Meaning: speech service could not capture the microphone.");
+        }
+        box.textContent=lines.join("\\n");
+        clearTimeout(timer);
+      };
+
+      r.onend=()=>{
+        if(!finished){
+          lines.push("Speech service: ENDED without a result/error.");
+          box.textContent=lines.join("\\n");
+        }
+      };
+
+      lines.push("Starting speech recognition directly from this button…");
+      box.textContent=lines.join("\\n");
+
+      // Important: no await before start(); preserve Android user gesture.
+      r.start();
+
+      timer=setTimeout(()=>{
+        if(!finished){
+          lines.push("Diagnostic timeout: no result yet.");
+          box.textContent=lines.join("\\n");
+        }
+      },5000);
+
+    }catch(e){
+      lines.push("Speech start exception: "+(e.name||"unknown")+" — "+(e.message||""));
+      box.textContent=lines.join("\\n");
+    }
+  }else{
+    box.textContent=lines.join("\\n")+
+      "\\n\\nNext step: Chrome on this Android device does not expose the Web Speech Recognition API to this page.";
+  }
+}
+
+function startVoice(){
+  const box=document.getElementById("lastAnswer");
+  const answer=document.getElementById("answer");
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+
+  if(location.protocol==="file:" || !window.isSecureContext){
+    box.textContent="❌ Voice input के लिए HTTPS आवश्यक है। यह ZIP अभी file:// mode में खुला है। JeevSetu को HTTPS website के रूप में खोलें, फिर 🎤 मरीज बोलें दबाएँ.";
+    return;
+  }
+
+  if(!SR){
+    box.textContent="❌ इस Chrome/browser में Hindi voice input उपलब्ध नहीं है। कृपया Chrome में खोलें और उत्तर type करें.";
+    return;
+  }
+
+  /*
+    IMPORTANT Android/Chrome fix:
+    Do NOT await getUserMedia() before recognition.start().
+    Awaiting a permission promise can consume the user-gesture context and
+    cause Web Speech API to return 'not-allowed' even when microphone
+    permission is already ON.
+  */
+  box.textContent="🎤 शुरू हो रहा है… अब मरीज हिंदी में बोलें।";
+
+  const r=new SR();
+  r.lang="hi-IN";
+  r.interimResults=false;
+  r.continuous=false;
+  r.maxAlternatives=1;
+
+  let gotResult=false;
+
+  r.onstart=()=>{
+    box.textContent="🎤 सुन रहा हूँ… अब मरीज हिंदी में बोलें।";
+  };
+
+  r.onresult=e=>{
+    const text=e.results && e.results[0] && e.results[0][0]
+      ? e.results[0][0].transcript.trim() : "";
+    if(text){
+      gotResult=true;
+      answer.value=text;
+      box.textContent="✅ सुना गया: "+text;
+    }else{
+      box.textContent="⚠️ आवाज़ मिली लेकिन शब्द नहीं समझे गए। फिर से बोलें.";
+    }
+  };
+
+  r.onerror=e=>{
+    const err=e.error||"unknown";
+    let msg="Voice error: "+err;
+    if(err==="not-allowed" || err==="service-not-allowed"){
+      msg="❌ Voice recognition को Chrome ने अनुमति नहीं दी। Chrome > Settings > Site settings > Microphone > Allow करें, फिर page reload करें. उसके बाद सीधे 🎤 मरीज बोलें दबाएँ.";
+    }else if(err==="audio-capture"){
+      msg="❌ Microphone उपलब्ध नहीं है या किसी दूसरी app ने उसे पकड़ रखा है. दूसरी voice/video app बंद करके फिर कोशिश करें.";
+    }else if(err==="no-speech"){
+      msg="⚠️ आवाज़ नहीं मिली। मरीज के पास से सामान्य आवाज़ में फिर से बोलें.";
+    }else if(err==="network"){
+      msg="⚠️ Speech recognition service/network उपलब्ध नहीं है. Internet connection जाँचें.";
+    }else if(err==="aborted"){
+      msg="⚠️ Voice session बंद हो गया. फिर से 🎤 दबाएँ.";
+    }
+    box.textContent=msg;
+  };
+
+  r.onend=()=>{
+    if(!gotResult && !box.textContent.includes("Voice error") &&
+       !box.textContent.includes("⚠️")){
+      box.textContent="Voice session ended. फिर से 🎤 दबाएँ.";
+    }
+  };
+
+  try{
+    // Keep recognition.start() directly inside the button click call stack.
+    r.start();
+  }catch(e){
+    box.textContent="Voice start error: "+(e.message||e.name||"unknown");
+  }
+}
+
+function escapeHtml(s){
+ return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
+}
+function restart(){location.reload();}
+
+// Build 3.8: use event listeners instead of inline onclick handlers.
+// This makes the prototype more reliable when opened from Android Files/Chrome.
+function uiReady(){
+  const el=document.getElementById("jsStatus");
+  if(el) el.textContent="✅ JeevSetu JavaScript is running. Tap START HPI.";
+}
+function bindUI(){
+  const pairs=[
+    ["startHpiBtn",startEncounter], ["speakBtn",speakQuestion], ["voiceDiagBtn",testVoiceService],
+    ["voiceBtn",startVoice], ["micTestBtn",testMicrophone],
+    ["saveNextBtn",submitAnswer], ["skipBtn",skipQuestion],
+    ["restartBtn",restart]
+  ];
+  pairs.forEach(([id,fn])=>{
+    const b=document.getElementById(id);
+    if(b) b.addEventListener("click",fn);
+  });
+  uiReady();
+}
+if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",bindUI); else bindUI();
+
+</script>
+</body>
+</html>
