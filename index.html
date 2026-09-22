@@ -1,0 +1,853 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JeevSetu v0.1 — Build 3.9 FIXED V2-5-25</title>
+<style>
+body{font-family:Arial,sans-serif;margin:0;background:#f4f8f6;color:#173b35}
+header{background:#176653;color:white;padding:16px 18px;font-size:22px;font-weight:700}
+.wrap{max-width:900px;margin:auto;padding:16px}
+.card{background:white;border-radius:14px;padding:18px;margin:14px 0;box-shadow:0 2px 8px #0001}
+label{display:block;font-weight:700;margin:12px 0 6px}
+input,select,textarea{width:100%;box-sizing:border-box;padding:12px;border:1px solid #c8d7d2;border-radius:9px;font-size:16px}
+button{border:0;border-radius:9px;padding:12px 18px;font-size:16px;font-weight:700;background:#176653;color:white;margin:7px 5px 7px 0}
+button.secondary{background:#dfece8;color:#173b35}
+button.voice{background:#b97816}
+.hidden{display:none}
+.q{font-size:21px;font-weight:700;line-height:1.4;margin:12px 0}
+.sub{color:#61736e;font-size:14px}
+.answer{font-size:17px;background:#f4f8f6;padding:12px;border-radius:9px;margin-top:10px}
+.badge{display:inline-block;background:#e5f2ee;padding:5px 9px;border-radius:20px;margin:3px;font-size:13px}
+pre{white-space:pre-wrap;background:#f4f8f6;padding:14px;border-radius:9px}
+.warn{background:#fff4df;padding:12px;border-radius:9px;color:#714d10}
+</style>
+</head>
+<body>
+<header>JeevSetu — Build 3.9 FIXED V2-5-27 RED-FLAG GATE · Hindi Patient Interaction · Hindi Clinical Note</header>
+<div class="wrap"><div class="card" style="padding:10px;margin:10px 0;background:#eef7f3"><b id="jsStatus">⏳ Loading JeevSetu…</b></div>
+
+<div class="card" id="patientCard">
+<h2>Patient / Encounter</h2>
+<label>Patient Code</label><input id="pid" placeholder="e.g. JS-MP-000001">
+<label>Mobile Number</label><input id="mobile" placeholder="10 digit mobile number">
+<button id="startHpiBtn" type="button">START HPI</button>
+<div class="sub">Prototype: patient lookup is local to this browser.</div>
+</div>
+
+<div class="card hidden" id="chatCard">
+<div>
+<span class="badge">Hindi voice-first</span>
+<span class="badge">Clinical AI</span>
+<span class="badge">Hindi clinical record</span>
+</div>
+<h2>JeevSetu is asking</h2>
+<div class="q" id="question"></div>
+<div class="sub" id="intent"></div>
+<div class="warn"><b>महत्वपूर्ण:</b> Hindi voice input के लिए JeevSetu को <b>HTTPS website</b> के रूप में Chrome में खोलना आवश्यक है। ZIP को Files से सीधे खोलने पर Chrome microphone/speech service को अनुमति नहीं दे सकता। पहले <b>Test Microphone</b> दबाएँ, फिर <b>🎤 मरीज बोलें</b> दबाएँ।</div>
+
+<button class="voice" id="speakBtn" type="button">🔊 सुनाएँ</button>
+<button class="voice" id="voiceBtn" type="button">🎤 मरीज बोलें</button>
+<button class="secondary" id="micTestBtn" type="button">🎙️ Test Microphone</button>
+<button class="secondary" id="voiceDiagBtn" type="button">🔎 Test Voice Service</button>
+
+<label>उत्तर / Answer</label>
+<textarea id="answer" rows="3" placeholder="मरीज बोल सकता है या यहाँ उत्तर लिखा जा सकता है"></textarea>
+<button id="saveNextBtn" type="button">SAVE & NEXT</button>
+<button class="secondary" id="skipBtn" type="button">Not known / पता नहीं</button>
+
+<div class="answer" id="lastAnswer"></div>
+</div>
+
+<div class="card hidden" id="summaryCard">
+<h2>Structured HPI</h2>
+<div id="structured"></div>
+<h2>Clinical Note Preview</h2>
+<pre id="note"></pre>
+<button id="restartBtn" type="button">NEW TEST</button>
+</div>
+
+</div>
+
+<script>
+/*
+  Build 3.9 architecture:
+  JeevSetu Clinical Agent = decides question and interprets answer.
+  Hindi-first clinical workflow.
+  This browser prototype uses Web Speech API where available.
+  English translation is intentionally deferred until the Hindi clinical note is stable.
+*/
+
+const complaintQuestion = {key:"complaint", q:"आपको सबसे ज्यादा तकलीफ़ किस चीज़ की है? अपने शब्दों में बताइए।", intent:"मुख्य शिकायत"};
+const otherComplaintQuestion = {key:"other_complaint", q:"इसके अलावा कोई और तकलीफ़ भी है? अगर हाँ, तो बताइए; अगर नहीं, तो ‘नहीं’ कहिए।", intent:"अन्य शिकायत"};
+const historianQuestion = {key:"historian", q:"यह जानकारी कौन दे रहा है? मरीज खुद, मरीज के साथ आया रिश्तेदार/व्यक्ति, या दोनों?", intent:"जानकारी देने वाला"};
+const relationshipQuestion = {key:"relationship", q:"मरीज से आपका क्या संबंध है? जैसे माता, पिता, पति, पत्नी, बेटा, बेटी, भाई, बहन, अन्य रिश्तेदार या देखभाल करने वाला।", intent:"मरीज से संबंध"};
+const ageQuestion = {key:"patient_age", q:"मरीज की उम्र कितनी है? साल में बताइए।", intent:"मरीज की उम्र"};
+const sexQuestion = {key:"patient_sex", q:"मरीज पुरुष हैं या महिला? अगर बताना संभव न हो तो ‘पता नहीं’ कहें।", intent:"मरीज का लिंग"};
+const menstruationQuestion = {key:"menstruation_status", q:"अगर मरीज महिला हैं: क्या मासिक धर्म शुरू हो चुका है और अभी भी आता है? अगर पूरी तरह बंद हो चुका है, तो बताइए।", intent:"मासिक धर्म की स्थिति"};
+const pregnancyStatusQuestion = {key:"pregnancy_status", q:"क्या मरीज इस समय गर्भवती हैं, या गर्भवती होने की संभावना है? अगर पता नहीं है तो ‘पता नहीं’ कहें।", intent:"गर्भावस्था की स्थिति"};
+
+/*
+  V2-5-27:
+  Red-flag screening is now an explicit mandatory step immediately after
+  identifying who is giving the history and BEFORE the first complaint.
+  The history taker is non-technical, so questions are in simple Hindi. Red-flag questions use explicit Yes/No/Not known options.
+  If a red flag is identified, routine history taking stops immediately.
+*/
+const redFlagQuestions = [
+  {key:"rf_chest", q:"अभी इस समय क्या मरीज को सीने में बहुत तेज दर्द या बहुत ज्यादा भारीपन हो रहा है?", intent:"तुरंत खतरे की जाँच — सीना"},
+  {key:"rf_breathing", q:"अभी इस समय क्या मरीज को इतनी ज्यादा सांस लेने में दिक्कत है कि आराम से सांस लेना मुश्किल हो रहा है?", intent:"तुरंत खतरे की जाँच — सांस"},
+  {key:"rf_unresponsive", q:"क्या मरीज अभी बेहोश है, या आवाज़ देने पर जवाब नहीं दे रहा है?", intent:"तुरंत खतरे की जाँच — होश/जवाब"},
+  {key:"rf_stroke", q:"क्या अभी अचानक मरीज का चेहरा टेढ़ा हुआ है, एक तरफ हाथ या पैर कमजोर/सुन्न हुआ है, या बोलने में अचानक दिक्कत हुई है?", intent:"तुरंत खतरे की जाँच — अचानक कमजोरी/बोलना"},
+  {key:"rf_bleeding", q:"क्या अभी मरीज को बहुत ज्यादा या लगातार खून बह रहा है?", intent:"तुरंत खतरे की जाँच — रक्तस्राव"},
+  {key:"rf_severe_headache", q:"क्या अभी मरीज को अचानक बहुत तेज सिरदर्द शुरू हुआ है, जैसा पहले कभी नहीं हुआ?", intent:"तुरंत खतरे की जाँच — सिरदर्द"},
+  {key:"rf_seizure", q:"क्या अभी मरीज को दौरा या झटके आ रहे हैं, या पहली बार ऐसा दौरा पड़ा है?", intent:"तुरंत खतरे की जाँच — दौरा"},
+  {key:"rf_female_bleeding_pain", q:"क्या अभी मरीज को योनि से बहुत ज्यादा या लगातार खून आ रहा है, या पेट में बहुत तेज दर्द हो रहा है?", intent:"तुरंत खतरे की जाँच — महिला में रक्तस्राव/तेज दर्द"}
+];
+function isYesOrEmergency(text){
+  const s=String(text||"").trim().toLowerCase();
+  return /^(हाँ|हां|हा|जी हाँ|जी हां|जी|yes|y|हाँ, है|हां, है|हो|है)$/i.test(s);
+}
+
+function redFlagReason(key){
+  const map={
+    rf_chest:"सीने में बहुत तेज दर्द/भारीपन की बात बताई गई है।",
+    rf_breathing:"बहुत ज्यादा सांस लेने में दिक्कत की बात बताई गई है।",
+    rf_unresponsive:"मरीज के बेहोश होने या जवाब न देने की बात बताई गई है।",
+    rf_stroke:"अचानक चेहरे, हाथ/पैर या बोलने में बदलाव की बात बताई गई है।",
+    rf_bleeding:"बहुत ज्यादा या लगातार रक्तस्राव की बात बताई गई है।",
+    rf_severe_headache:"अचानक बहुत तेज सिरदर्द की बात बताई गई है।",
+    rf_seizure:"दौरे/झटकों की बात बताई गई है।",
+    rf_pregnancy:"गर्भावस्था में रक्तस्राव या बहुत तेज पेट दर्द की बात बताई गई है।",
+    rf_pregnancy:"गर्भावस्था में रक्तस्राव या बहुत तेज पेट दर्द की बात बताई गई है।"
+  };
+  return map[key] || "तुरंत ध्यान देने योग्य लक्षण बताया गया है।";
+}
+
+// Retained as a second safety net for free-text complaint/HPI answers.
+// It is NOT the primary red-flag workflow anymore.
+const redFlagPatterns = [
+  {rx:/सीने.*(बहुत तेज|अचानक).*दर्द|सीने.*दर्द.*(पसीना|बेहोश|सांस)|छाती.*दर्द.*(पसीना|बेहोश)/i, msg:"सीने में दर्द के साथ गंभीर लक्षण बताए गए हैं।"},
+  {rx:/(सांस|साँस).*दिक्कत.*(बहुत|बहुत ज्यादा|आराम)|आराम.*(सांस|साँस).*फूल|सांस.*नहीं.*आ रही/i, msg:"सांस लेने में गंभीर दिक्कत बताई गई है।"},
+  {rx:/(बेहोश|होश.*नहीं|अचेत|faint|unconscious)/i, msg:"बेहोशी/होश में बदलाव बताया गया है।"},
+  {rx:/(अचानक).*(कमजोरी|सुन्न|बोलने|चेहरा)|बोलने.*अचानक.*दिक्कत|मुंह.*टेढ़ा|चेहरा.*टेढ़ा/i, msg:"अचानक कमजोरी/बोलने या चेहरे में बदलाव बताया गया है।"},
+  {rx:/(खून|रक्त).*(बहुत|ज्यादा|लगातार).*बहना|बहुत.*खून.*(उल्टी|दस्त|पेशाब)/i, msg:"बहुत अधिक/लगातार रक्तस्राव बताया गया है।"},
+  {rx:/(खून की उल्टी|काला मल|काले रंग की पाखाना|ताजा खून.*मल)/i, msg:"खून की उल्टी या काले/खूनी मल की शिकायत बताई गई है।"},
+  {rx:/(अचानक).*(बहुत तेज|सबसे तेज).*सिरदर्द|सिरदर्द.*अचानक.*बहुत तेज/i, msg:"अचानक बहुत तेज सिरदर्द बताया गया है।"},
+  {rx:/(दौरा|झटके).*(पहली बार|नया)|पहली बार.*दौरा/i, msg:"पहली बार दौरा/झटके आने की बात बताई गई है।"},
+  {rx:/(गर्भवती|प्रेग्नेंट).*(खून|बेहोश|बहुत दर्द)|pregnan.*(bleed|faint|severe pain)/i, msg:"गर्भावस्था में गंभीर लक्षण बताए गए हैं।"}
+];
+function checkRedFlag(text){
+  const s=String(text||"").trim();
+  for(const item of redFlagPatterns){ if(item.rx.test(s)) return item.msg; }
+  return "";
+}
+
+// V2-5-22: Hindi-first complaint + adaptive HPI workflow.
+// The complete encounter remains in Hindi. English is used only for standard
+// medical terminology when it improves clarity. English translation is not
+// performed at this stage.
+const hpiTemplates = {
+  fever: [
+    ["duration","यह तकलीफ़ कब से है?","Duration"],
+    ["onset","बुखार अचानक शुरू हुआ या धीरे-धीरे?","Onset"],
+    ["pattern","बुखार लगातार रहता है या बीच-बीच में आता है?","Fever pattern"],
+    ["temperature","तापमान कितना रहा है, यदि मापा है?","Maximum temperature"],
+    ["chills","क्या ठंड लगकर कंपकंपी होती है या पसीना आता है?","Chills / sweating"],
+    ["associated","बुखार के साथ और कौन-कौन सी तकलीफ़ होती है?","Associated symptoms"],
+    ["exposure","हाल में किसी बीमार व्यक्ति के संपर्क में आए या कहीं यात्रा की?","Exposure / travel"],
+    ["treatment","बुखार के लिए कोई दवा या इलाज लिया है?","Previous treatment"],
+    ["negative","क्या खाँसी, सांस लेने में दिक्कत, उल्टी, पतले दस्त या पेशाब में जलन जैसी कोई तकलीफ़ नहीं है?","न होने वाली जरूरी तकलीफ़ें"]
+  ],
+  respiratory: [
+    ["duration","खांसी/जुकाम कब से है?","Duration"],
+    ["onset","यह अचानक शुरू हुआ या धीरे-धीरे?","Onset"],
+    ["cough_type","खांसी सूखी है या बलगम के साथ? बलगम का रंग कैसा है?","Cough character / sputum"],
+    ["breathlessness","क्या सांस लेने में तकलीफ़ होती है? आराम में या चलने पर?","Breathlessness"],
+    ["chest","क्या सीने में दर्द या भारीपन होता है?","Chest symptoms"],
+    ["fever","क्या साथ में बुखार या ठंड लगना है?","Fever / chills"],
+    ["wheeze","क्या सीटी जैसी आवाज़ आती है?","Wheeze"],
+    ["exposure","क्या किसी धूल, धुएँ या बीमार व्यक्ति के संपर्क में आए?","Exposure"],
+    ["treatment","इसके लिए कोई दवा या इलाज लिया है?","Previous treatment"]
+  ],
+  chest: [
+    ["duration","सीने में दर्द/भारीपन कब से है?","Duration"],
+    ["onset","दर्द अचानक शुरू हुआ या धीरे-धीरे?","Onset"],
+    ["site","दर्द सीने में कहाँ है?","Site"],
+    ["character","दर्द कैसा है—दबाव, भारीपन, जलन, चुभन या कुछ और?","Character"],
+    ["radiation","क्या दर्द हाथ, कंधे, पीठ, गर्दन या जबड़े तक जाता है?","Radiation"],
+    ["trigger","चलने, सीढ़ी चढ़ने या मेहनत से दर्द बढ़ता है? आराम करने से कम होता है?","Exertional relationship"],
+    ["associated","क्या साथ में सांस फूलना, पसीना, मतली, चक्कर या घबराहट होती है?","Associated symptoms"],
+    ["treatment","दर्द के लिए कोई दवा ली? उससे आराम हुआ?","Treatment / response"]
+  ],
+  abdominal: [
+    ["duration","पेट में दर्द कब से है?","Duration"],
+    ["onset","दर्द अचानक शुरू हुआ या धीरे-धीरे?","Onset"],
+    ["site","पेट में दर्द कहाँ है? एक जगह है या पूरे पेट में?","Site"],
+    ["character","दर्द कैसा है—मरोड़, जलन, चुभन, भारीपन या लगातार दर्द?","Character"],
+    ["radiation","क्या दर्द पीठ, कंधे या किसी दूसरी जगह जाता है?","Radiation"],
+    ["food","खाने से दर्द बढ़ता या कम होता है?","Relation to food"],
+    ["associated","क्या उल्टी, जी मिचलाना, पतले दस्त, पेट साफ़ होने में दिक्कत, बुखार या पेट फूलना है?","साथ की तकलीफ़ें"],
+    ["urinary","क्या पेशाब में जलन, बार-बार पेशाब या खून आता है?","Urinary symptoms"],
+    ["treatment","इसके लिए कोई दवा या इलाज लिया है?","Previous treatment"]
+  ],
+  headache: [
+    ["duration","सिरदर्द कब से है?","Duration"],
+    ["onset","दर्द अचानक बहुत तेज शुरू हुआ या धीरे-धीरे?","Onset"],
+    ["site","सिर के किस हिस्से में दर्द है?","Site"],
+    ["character","दर्द कैसा है—धड़कने जैसा, दबाव जैसा या चुभने जैसा?","Character"],
+    ["severity","दर्द की तीव्रता कितनी है—हल्की, मध्यम या बहुत ज्यादा?","Severity"],
+    ["associated","क्या जी मिचलाना, उल्टी, रोशनी या तेज़ आवाज़ से परेशानी, या चक्कर होते हैं?","साथ की तकलीफ़ें"],
+    ["neurology","क्या हाथ-पैर में अचानक कमजोरी या सुन्नपन, बोलने में दिक्कत, बेहोशी या आँखों से साफ़ दिखाई देने में बदलाव हुआ?","खतरे के संकेत"],
+    ["trigger","क्या नींद की कमी, तनाव, धूप, भूख या किसी अन्य चीज़ से दर्द बढ़ता है?","Triggers"],
+    ["treatment","कोई painkiller या अन्य इलाज लिया है?","Previous treatment"]
+  ],
+  breathlessness: [
+    ["duration","सांस लेने में तकलीफ़ कब से है?","Duration"],
+    ["onset","यह अचानक शुरू हुई या धीरे-धीरे?","Onset"],
+    ["activity","आराम में सांस फूलती है या चलने/मेहनत करने पर?","Exertional limitation"],
+    ["severity","कितनी दूर चलने या कितनी सीढ़ी चढ़ने पर सांस फूलती है?","Severity / functional limitation"],
+    ["position","लेटने पर सांस बढ़ती है? रात में नींद से उठकर सांस फूलती है?","Positional / nocturnal symptoms"],
+    ["associated","क्या खांसी, बलगम, सीने में दर्द, wheeze, fever या palpitations हैं?","Associated symptoms"],
+    ["swelling","क्या पैरों में सूजन बढ़ी है?","Peripheral edema"],
+    ["history","पहले दमा, दिल की बीमारी या फेफड़ों से जुड़ी कोई परेशानी रही है?","पहले की जरूरी बीमारी"],
+    ["treatment","इसके लिए कोई inhaler या दवा ली है?","Previous treatment"]
+  ],
+  generic: [
+    ["duration","यह तकलीफ़ कब से है?","Duration"],
+    ["onset","यह तकलीफ़ अचानक शुरू हुई या धीरे-धीरे?","Onset"],
+    ["course","यह तकलीफ़ लगातार रहती है या बीच-बीच में आती है?","Course"],
+    ["severity","इस तकलीफ़ की तीव्रता कैसी है—हल्की, मध्यम या बहुत ज्यादा?","Severity"],
+    ["associated","इसके साथ और कौन-कौन सी तकलीफ़ होती है?","Associated symptoms"],
+    ["relieving","किस चीज़ से यह तकलीफ़ बढ़ती या कम होती है?","Aggravating / relieving factors"],
+    ["treatment","इसके लिए पहले कोई दवा या इलाज लिया है?","Previous treatment"],
+    ["negative","क्या कोई महत्वपूर्ण लक्षण ऐसा है जो आपको बिल्कुल नहीं है?","Relevant negatives"]
+  ]
+};
+
+function detectComplaintType(text){
+  const s=String(text||"").toLowerCase();
+  if(/सीने|सीना|chest|दिल के पास|heart/.test(s) && /दर्द|भारी|जलन|pain|pressure/.test(s)) return "chest";
+  if(/सांस|साँस|दम|breath|breathing|फूल/.test(s)) return "breathlessness";
+  if(/बुखार|fever|तापमान|ठंड लग/.test(s)) return "fever";
+  if(/खांसी|खाँसी|cough|बलगम|जुकाम|cold/.test(s)) return "respiratory";
+  if(/पेट|abdomen|stomach|नाभि|उल्टी|vomit|दस्त|diarrhea|कब्ज|constipation/.test(s) && /दर्द|pain|उल्टी|दस्त|कब्ज|जलन/.test(s)) return "abdominal";
+  if(/सिरदर्द|सरदर्द|सिर में दर्द|headache|migraine/.test(s)) return "headache";
+  return "generic";
+}
+
+let questions = [];
+let idx=0, answers={}, complaints=[], historian="", relationship="";
+
+function buildQuestions(){
+  const type=detectComplaintType(answers.complaint||"");
+  const template=hpiTemplates[type]||hpiTemplates.generic;
+  questions=[complaintQuestion].concat(template.map(x=>({key:x[0],q:x[1],intent:x[2]})));
+  questions.push(otherComplaintQuestion);
+  return type;
+}
+
+function buildNextComplaintQuestions(){
+  // Start the new complaint loop from question 0.
+  // Without resetting idx, next() would jump past the only complaint question
+  // and finish before taking the second complaint's HPI.
+  answers={};
+  idx=0;
+  questions=[{key:"complaint", q:"अब दूसरी तकलीफ़ क्या है? अपने शब्दों में बताइए।", intent:"अगली शिकायत"}];
+}
+
+function isSelfHistorian(text){
+  return /मरीज\s*खुद|खुद\s*मरीज|मैं\s*खुद|patient\s*self|self/i.test(String(text||""));
+}
+
+function needsRelationship(text){
+  return !isSelfHistorian(text);
+}
+
+function isFemale(text){
+  return /महिला|स्त्री|औरत|female|woman|girl|लड़की|स्त्रीलिंग/i.test(String(text||""));
+}
+
+function isMale(text){
+  return /पुरुष|मर्द|male|man|boy|लड़का|पुल्लिंग/i.test(String(text||""));
+}
+
+function menstruationActive(text){
+  const s=String(text||"").trim().toLowerCase();
+  if(/बंद.*हो.*गया|पूरी तरह.*बंद|menopause|post.?menopaus|मासिक.*नहीं.*आता/i.test(s)) return false;
+  if(/शुरू.*नहीं|अभी.*शुरू.*नहीं|not started|never.*period/i.test(s)) return false;
+  if(/हाँ|हां|जी|yes|आता|आती|चल रहा|होता|होती/i.test(s)) return true;
+  return null;
+}
+function pregnancyRelevant(){
+  return isFemale(answers.patient_sex) && menstruationActive(answers.menstruation_status)===true;
+}
+
+function isPregnantYes(text){
+  return /^(हाँ|हां|हा|जी|जी हाँ|जी हां|yes|y|हो|है)/i.test(String(text||"").trim());
+}
+
+function startEncounter(){
+  idx=0; answers={}; complaints=[]; historian=""; relationship="";
+  // Mandatory safety-first order:
+  // historian -> relationship (only if not the patient) -> sex -> red-flag gate -> age -> complaint/HPI.
+  // The female bleeding/pain red flag is added only for a female patient.
+  // No pregnancy-status or age-based pregnancy assumption is made.
+  questions=[historianQuestion, sexQuestion].concat(redFlagQuestions.filter(q=>q.key!=="rf_female_bleeding_pain")).concat([ageQuestion, complaintQuestion]);
+  document.getElementById("patientCard").classList.add("hidden");
+  document.getElementById("chatCard").classList.remove("hidden");
+  document.getElementById("summaryCard").classList.add("hidden");
+  showQuestion();
+}
+
+function showQuestion(){
+  const q=questions[idx];
+  document.getElementById("question").textContent=q.q;
+  document.getElementById("intent").textContent="Clinical intent: "+q.intent;
+  document.getElementById("answer").value="";
+  document.getElementById("lastAnswer").textContent="";
+  renderAnswerMode();
+}
+
+function saveCurrentComplaint(){
+  if(answers.complaint && answers.complaint.trim()){
+    const type=detectComplaintType(answers.complaint);
+    const hpi={};
+    questions.forEach(q=>{
+      if(q.key!=="complaint" && q.key!=="other_complaint" && Object.prototype.hasOwnProperty.call(answers,q.key)) hpi[q.key]=answers[q.key];
+    });
+    complaints.push({complaint:answers.complaint, type, hpi});
+  }
+}
+
+function triggerRedFlag(reason, answerText){
+  const source=historian || "जानकारी देने वाला स्पष्ट नहीं";
+  document.getElementById("chatCard").classList.add("hidden");
+  document.getElementById("summaryCard").classList.remove("hidden");
+  document.getElementById("structured").innerHTML =
+    `<div style="background:#fff0f0;padding:16px;border-radius:12px;border:2px solid #c62828">`+
+    `<h2 style="color:#b71c1c;margin-top:0">🚨 RED FLAG ALERT</h2>`+
+    `<p><b>खतरे का संकेत:</b> ${escapeHtml(reason)}</p>`+
+    `<p><b>मरीज/जानकारी देने वाले का उत्तर:</b> ${escapeHtml(answerText)}</p>`+
+    `<p><b>जानकारी किसने दी:</b> ${escapeHtml(source)}</p>`+
+    `<p><b>मरीज से संबंध:</b> ${escapeHtml(relationship || "उपलब्ध नहीं")}</p>`+
+    `<p><b>अगला कदम:</b> routine history taking यहीं रोकें और मरीज का तत्काल clinician द्वारा मूल्यांकन कराएँ। गंभीर/तेजी से बिगड़ती स्थिति में स्थानीय emergency service का उपयोग करें।</p>`+
+    `</div>`;
+  document.getElementById("note").textContent =
+    "JeevSetu — RED FLAG ALERT\n\n"+
+    "Patient Code: "+(document.getElementById("pid")?.value.trim()||"उपलब्ध नहीं")+"\n"+
+    "Mobile: "+(document.getElementById("mobile")?.value.trim()||"उपलब्ध नहीं")+"\n"+
+    "जानकारी किसने दी: "+source+"\n"+
+    "मरीज से संबंध: "+(relationship||"उपलब्ध नहीं")+"\n\n"+
+    "खतरे का संकेत: "+reason+"\n"+
+    "उत्तर: "+answerText+"\n\n"+
+    "Routine history taking stopped. तत्काल clinician assessment required.";
+}
+
+
+function renderAnswerMode(){
+  const key=questions[idx]?.key;
+  const answerBox=document.getElementById("answer");
+  const optionKeys=["rf_chest","rf_breathing","rf_unresponsive","rf_stroke","rf_bleeding","rf_severe_headache","rf_seizure","rf_female_bleeding_pain"];
+  const existing=document.getElementById("redFlagOptions");
+  if(existing) existing.remove();
+  if(!optionKeys.includes(key)) return;
+
+  const wrap=document.createElement("div");
+  wrap.id="redFlagOptions";
+  wrap.style.margin="10px 0";
+  wrap.innerHTML=
+    '<div style="font-weight:700;margin-bottom:6px">कृपया एक विकल्प चुनें:</div>'+
+    '<button type="button" data-rf="yes" style="background:#b71c1c">हाँ</button>'+
+    '<button type="button" data-rf="no" class="secondary">नहीं</button>'+
+    '<button type="button" data-rf="unknown" class="secondary">पता नहीं</button>';
+  answerBox.parentNode.insertBefore(wrap,answerBox);
+  wrap.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{
+    const v=b.dataset.rf==="yes" ? "हाँ" : b.dataset.rf==="no" ? "नहीं" : "पता नहीं";
+    answerBox.value=v;
+    submitAnswer();
+  }));
+}
+
+function submitAnswer(){
+  const v=document.getElementById("answer").value.trim();
+  if(!v){alert("कृपया उत्तर बोलें, लिखें या 'पता नहीं' चुनें।");return;}
+  const key=questions[idx].key;
+  answers[key]=v;
+  document.getElementById("lastAnswer").textContent="Saved: "+v;
+
+  if(key==="historian"){
+    historian=v;
+    if(needsRelationship(v)){
+      questions.splice(idx+1,0,relationshipQuestion);
+    }
+    next();
+    return;
+  }
+
+  if(key==="relationship"){
+    relationship=v;
+    next();
+    return;
+  }
+
+  if(key==="patient_age"){
+    next();
+    return;
+  }
+
+  if(key==="patient_sex"){
+    // Remove obsolete pregnancy-context questions from older builds.
+    questions = questions.filter(q=>q.key!=="menstruation_status" && q.key!=="pregnancy_status" && q.key!=="rf_pregnancy" && q.key!=="rf_female_bleeding_pain");
+    // Ask the female-specific safety question for every female patient,
+    // regardless of age or menopausal status.
+    if(isFemale(v)) questions.splice(idx+1,0,redFlagQuestions.find(q=>q.key==="rf_female_bleeding_pain"));
+    next();
+    return;
+  }
+
+  // Kept only for backward compatibility with any older saved question state.
+  if(key==="menstruation_status" || key==="pregnancy_status"){
+    next();
+    return;
+  }
+
+  // Mandatory early red-flag screen. A positive answer stops routine history immediately.
+  if(redFlagQuestions.some(q=>q.key===key)){
+    if(isYesOrEmergency(v)){
+      triggerRedFlag(redFlagReason(key),v);
+      return;
+    }
+    next();
+    return;
+  }
+
+  // Second safety net: clinically concerning free-text answers during complaint/HPI.
+  const redFlag=checkRedFlag(v);
+  if(redFlag){
+    triggerRedFlag(redFlag,v);
+    return;
+  }
+
+  if(key==="complaint"){
+    const type=detectComplaintType(v);
+    const template=hpiTemplates[type]||hpiTemplates.generic;
+    const qlist=[{key:"complaint",q:questions[idx].q,intent:questions[idx].intent}]
+      .concat(template.map(x=>({key:x[0],q:x[1],intent:x[2]})));
+
+    qlist.push(otherComplaintQuestion);
+    questions=qlist;
+  }
+
+  if(key==="other_complaint"){
+    const low=v.toLowerCase();
+    if(/^(नहीं|नही|न|no|none|बस|इतना ही|इतनी ही|और नहीं)/i.test(low)){
+      saveCurrentComplaint();
+      finish();
+      return;
+    }
+    // Patient has another complaint. Save the completed complaint and start a fresh HPI loop.
+    saveCurrentComplaint();
+    buildNextComplaintQuestions();
+    // We have already positioned the flow at the NEW complaint question.
+    // Do not call next(), because that would skip it and finish the encounter.
+    showQuestion();
+    return;
+  }
+
+  next();
+}
+
+function skipQuestion(){
+  const key=questions[idx].key;
+  // For a red-flag question, "पता नहीं" must not be treated as a negative.
+  // Keep the uncertainty visible and continue only after the complete screen.
+  answers[key]="पता नहीं / जानकारी उपलब्ध नहीं";
+  if(key==="historian"){
+    historian=answers[key];
+    // If the historian is unknown, still ask the relationship rather than silently skipping it.
+    questions.splice(idx+1,0,relationshipQuestion);
+    next();
+    return;
+  }
+
+  if(key==="relationship"){
+    relationship=answers[key];
+    next();
+    return;
+  }
+
+  if(key==="patient_age"){
+    next();
+    return;
+  }
+  if(key==="patient_sex"){
+    questions = questions.filter(q=>q.key!=="menstruation_status" && q.key!=="pregnancy_status" && q.key!=="rf_pregnancy");
+    if(isFemale(answers[key])) questions.splice(idx+1,0,menstruationQuestion);
+    next();
+    return;
+  }
+  if(key==="menstruation_status"){
+    if(menstruationActive(answers[key])===true) questions.splice(idx+1,0,pregnancyStatusQuestion);
+    next();
+    return;
+  }
+  if(key==="pregnancy_status"){
+    next();
+    return;
+  }
+  if(redFlagQuestions.some(q=>q.key===key)){
+    next();
+    return;
+  }
+  if(key==="complaint"){
+    const template=hpiTemplates.generic;
+    questions=[{key:"complaint",q:questions[idx].q,intent:questions[idx].intent}]
+      .concat(template.map(x=>({key:x[0],q:x[1],intent:x[2]})))
+      .concat(otherComplaintQuestion);
+  }
+  if(key==="other_complaint"){
+    saveCurrentComplaint();
+    finish();
+    return;
+  }
+  next();
+}
+
+function next(){
+  idx++;
+  if(idx>=questions.length){
+    // Safety fallback: if the final follow-up was skipped by an unexpected path,
+    // finish rather than asking unrelated questions.
+    saveCurrentComplaint();
+    finish();
+  } else showQuestion();
+}
+
+function finish(){
+  if(complaints.length===0) saveCurrentComplaint();
+  document.getElementById("chatCard").classList.add("hidden");
+  document.getElementById("summaryCard").classList.remove("hidden");
+  render();
+}
+
+function speakQuestion(){
+  const text=document.getElementById("question").textContent;
+  if(!("speechSynthesis" in window)){
+    document.getElementById("lastAnswer").textContent="Hindi voice output is not available in this browser.";
+    return;
+  }
+  const u=new SpeechSynthesisUtterance(text);
+  u.lang="hi-IN";
+  u.rate=0.95;
+  speechSynthesis.cancel();
+  speechSynthesis.speak(u);
+}
+
+async function testMicrophone(){
+  const box=document.getElementById("lastAnswer");
+  box.textContent="⏳ माइक्रोफोन जाँच रहा हूँ… कृपया 2–3 सेकंड प्रतीक्षा करें।";
+
+  if(location.protocol==="file:" || !window.isSecureContext){
+    box.textContent="❌ यह ZIP/file mode है। Hindi voice के लिए JeevSetu को HTTPS website (जैसे GitHub Pages) पर खोलें। ZIP को सीधे Files से खोलने पर microphone नहीं चलेगा।";
+    return false;
+  }
+
+  if(!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia!=="function"){
+    box.textContent="❌ Chrome ने microphone API उपलब्ध नहीं कराया। Chrome को बंद करके फिर खोलें और JeevSetu दोबारा खोलें.";
+    return false;
+  }
+
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    const tracks=stream.getTracks();
+    tracks.forEach(t=>t.stop());
+
+    let permText="";
+    if(navigator.permissions && navigator.permissions.query){
+      try{
+        const p=await navigator.permissions.query({name:"microphone"});
+        permText = p.state==="granted" ? " अनुमति ON है।" :
+                   p.state==="prompt" ? " Chrome अनुमति माँग सकता है।" :
+                   " अनुमति BLOCK है।";
+      }catch(_){}
+    }
+
+    box.textContent="✅ Microphone काम कर रहा है।"+permText+" अब 🎤 मरीज बोलें दबाएँ और हिंदी में बोलें.";
+    return true;
+  }catch(e){
+    const n=e && e.name ? e.name : "unknown";
+    let msg="❌ Microphone test failed: "+n+".";
+    if(n==="NotAllowedError" || n==="PermissionDeniedError"){
+      msg="❌ Microphone permission BLOCK है। Chrome > Settings > Site settings > Microphone > Allow करें, फिर JeevSetu reload करें.";
+    }else if(n==="NotFoundError"){
+      msg="❌ कोई microphone नहीं मिला। Tablet का microphone और Android microphone permission जाँचें.";
+    }else if(n==="NotReadableError"){
+      msg="❌ Microphone किसी दूसरे app द्वारा इस्तेमाल हो रहा है। दूसरी voice/video app बंद करके फिर कोशिश करें.";
+    }else if(n==="SecurityError"){
+      msg="❌ Chrome security ने microphone रोक दिया। Chrome में JeevSetu फिर से खोलें.";
+    }
+    box.textContent=msg;
+    return false;
+  }
+}
+
+
+async function testVoiceService(){
+  const box=document.getElementById("lastAnswer");
+  const lines=[];
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+
+  lines.push("JeevSetu Voice Diagnostic — Build 3.9");
+  lines.push("Protocol: "+location.protocol);
+  lines.push("Secure context: "+(window.isSecureContext ? "YES" : "NO"));
+  lines.push("Browser: "+navigator.userAgent);
+  lines.push("SpeechRecognition API: "+(SR ? "AVAILABLE" : "NOT AVAILABLE"));
+
+  if(navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia==="function"){
+    lines.push("Microphone API: AVAILABLE");
+  }else{
+    lines.push("Microphone API: NOT AVAILABLE");
+  }
+
+  if(navigator.permissions && navigator.permissions.query){
+    try{
+      const p=await navigator.permissions.query({name:"microphone"});
+      lines.push("Microphone permission: "+p.state);
+    }catch(e){
+      lines.push("Microphone permission: Chrome did not expose permission state");
+    }
+  }
+
+  if(SR){
+    try{
+      const r=new SR();
+      r.lang="hi-IN";
+      r.interimResults=false;
+      r.continuous=false;
+      r.maxAlternatives=1;
+
+      let finished=false;
+      let timer=null;
+
+      r.onstart=()=>{
+        lines.push("Speech service: STARTED");
+        lines.push("RESULT: Chrome accepted the voice-recognition request.");
+        box.textContent=lines.join("\\n");
+        clearTimeout(timer);
+        setTimeout(()=>{ try{r.stop();}catch(_){} },2500);
+      };
+
+      r.onresult=(e)=>{
+        finished=true;
+        const t=e.results?.[0]?.[0]?.transcript || "";
+        lines.push("Speech result: "+(t || "(empty)"));
+        box.textContent=lines.join("\\n");
+      };
+
+      r.onerror=(e)=>{
+        finished=true;
+        lines.push("Speech error: "+(e.error||"unknown"));
+        if(e.error==="not-allowed" || e.error==="service-not-allowed"){
+          lines.push("Meaning: Chrome/Android speech-recognition service refused the request.");
+          lines.push("This is different from ordinary microphone permission.");
+        }else if(e.error==="network"){
+          lines.push("Meaning: speech service/network could not be reached.");
+        }else if(e.error==="audio-capture"){
+          lines.push("Meaning: speech service could not capture the microphone.");
+        }
+        box.textContent=lines.join("\\n");
+        clearTimeout(timer);
+      };
+
+      r.onend=()=>{
+        if(!finished){
+          lines.push("Speech service: ENDED without a result/error.");
+          box.textContent=lines.join("\\n");
+        }
+      };
+
+      lines.push("Starting speech recognition directly from this button…");
+      box.textContent=lines.join("\\n");
+
+      // Important: no await before start(); preserve Android user gesture.
+      r.start();
+
+      timer=setTimeout(()=>{
+        if(!finished){
+          lines.push("Diagnostic timeout: no result yet.");
+          box.textContent=lines.join("\\n");
+        }
+      },5000);
+
+    }catch(e){
+      lines.push("Speech start exception: "+(e.name||"unknown")+" — "+(e.message||""));
+      box.textContent=lines.join("\\n");
+    }
+  }else{
+    box.textContent=lines.join("\\n")+
+      "\\n\\nNext step: Chrome on this Android device does not expose the Web Speech Recognition API to this page.";
+  }
+}
+
+function startVoice(){
+  const box=document.getElementById("lastAnswer");
+  const answer=document.getElementById("answer");
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+
+  if(location.protocol==="file:" || !window.isSecureContext){
+    box.textContent="❌ Voice input के लिए HTTPS आवश्यक है। यह ZIP अभी file:// mode में खुला है। JeevSetu को HTTPS website के रूप में खोलें, फिर 🎤 मरीज बोलें दबाएँ.";
+    return;
+  }
+
+  if(!SR){
+    box.textContent="❌ इस Chrome/browser में Hindi voice input उपलब्ध नहीं है। कृपया Chrome में खोलें और उत्तर type करें.";
+    return;
+  }
+
+  /*
+    IMPORTANT Android/Chrome fix:
+    Do NOT await getUserMedia() before recognition.start().
+    Awaiting a permission promise can consume the user-gesture context and
+    cause Web Speech API to return 'not-allowed' even when microphone
+    permission is already ON.
+  */
+  box.textContent="🎤 शुरू हो रहा है… अब मरीज हिंदी में बोलें।";
+
+  const r=new SR();
+  r.lang="hi-IN";
+  r.interimResults=false;
+  r.continuous=false;
+  r.maxAlternatives=1;
+
+  let gotResult=false;
+
+  r.onstart=()=>{
+    box.textContent="🎤 सुन रहा हूँ… अब मरीज हिंदी में बोलें।";
+  };
+
+  r.onresult=e=>{
+    const text=e.results && e.results[0] && e.results[0][0]
+      ? e.results[0][0].transcript.trim() : "";
+    if(text){
+      gotResult=true;
+      answer.value=text;
+      box.textContent="✅ सुना गया: "+text;
+    }else{
+      box.textContent="⚠️ आवाज़ मिली लेकिन शब्द नहीं समझे गए। फिर से बोलें.";
+    }
+  };
+
+  r.onerror=e=>{
+    const err=e.error||"unknown";
+    let msg="Voice error: "+err;
+    if(err==="not-allowed" || err==="service-not-allowed"){
+      msg="❌ Voice recognition को Chrome ने अनुमति नहीं दी। Chrome > Settings > Site settings > Microphone > Allow करें, फिर page reload करें. उसके बाद सीधे 🎤 मरीज बोलें दबाएँ.";
+    }else if(err==="audio-capture"){
+      msg="❌ Microphone उपलब्ध नहीं है या किसी दूसरी app ने उसे पकड़ रखा है. दूसरी voice/video app बंद करके फिर कोशिश करें.";
+    }else if(err==="no-speech"){
+      msg="⚠️ आवाज़ नहीं मिली। मरीज के पास से सामान्य आवाज़ में फिर से बोलें.";
+    }else if(err==="network"){
+      msg="⚠️ Speech recognition service/network उपलब्ध नहीं है. Internet connection जाँचें.";
+    }else if(err==="aborted"){
+      msg="⚠️ Voice session बंद हो गया. फिर से 🎤 दबाएँ.";
+    }
+    box.textContent=msg;
+  };
+
+  r.onend=()=>{
+    if(!gotResult && !box.textContent.includes("Voice error") &&
+       !box.textContent.includes("⚠️")){
+      box.textContent="Voice session ended. फिर से 🎤 दबाएँ.";
+    }
+  };
+
+  try{
+    // Keep recognition.start() directly inside the button click call stack.
+    r.start();
+  }catch(e){
+    box.textContent="Voice start error: "+(e.message||e.name||"unknown");
+  }
+}
+
+function render(){
+  const structured=document.getElementById("structured");
+  const note=document.getElementById("note");
+  const labels={
+    duration:"अवधि", onset:"शुरुआत", pattern:"बुखार का ढंग", temperature:"तापमान",
+    chills:"ठंड लगना / पसीना", associated:"साथ की तकलीफ़ें", exposure:"संपर्क / यात्रा",
+    treatment:"पहले लिया गया इलाज", cough_type:"खांसी का प्रकार / बलगम", breathlessness:"सांस की तकलीफ़",
+    chest:"सीने के लक्षण", fever:"बुखार", wheeze:"सीटी जैसी आवाज़", site:"स्थान", character:"दर्द का स्वरूप",
+    radiation:"दूसरी जगह फैलना", trigger:"किससे बढ़ता है", food:"भोजन से संबंध", urinary:"पेशाब से जुड़ी तकलीफ़",
+    severity:"तीव्रता", neurology:"खतरे के संकेत", activity:"चलने-फिरने पर असर",
+    position:"लेटने / रात में असर", swelling:"पैरों में सूजन", history:"पहले की जरूरी बीमारी",
+    relieving:"किससे बढ़ता या घटता है", course:"कैसे चलता रहता है", negative:"न होने वाली जरूरी तकलीफ़ें"
+  };
+
+  const rows=[];
+  complaints.forEach((c,i)=>{
+    rows.push(`<div style="margin:10px 0 5px"><b>शिकायत ${i+1}: ${escapeHtml(c.complaint)}</b></div>`);
+    Object.keys(c.hpi).forEach(k=>rows.push(`<div><b>${escapeHtml(labels[k]||k)}:</b> ${escapeHtml(c.hpi[k])}</div>`));
+  });
+  structured.innerHTML=rows.join("") || "कोई उत्तर उपलब्ध नहीं।";
+
+  const patientCode=document.getElementById("pid")?.value.trim() || "उपलब्ध नहीं";
+  const mobile=document.getElementById("mobile")?.value.trim() || "उपलब्ध नहीं";
+  const stamp=new Date().toLocaleString("hi-IN");
+  const noteLines=[
+    "JeevSetu — Clinical Note",
+    "भाषा: हिन्दी (जहाँ उपयोगी हो वहाँ English medical terminology allowed)",
+    "",
+    `Patient Code: ${patientCode}`,
+    `Mobile: ${mobile}`,
+    `Date/Time: ${stamp}`,
+    `जानकारी किसने दी: ${historian || "उपलब्ध नहीं"}`,
+    `मरीज से संबंध: ${relationship || "लागू नहीं / उपलब्ध नहीं"}`,
+    `मरीज की उम्र: ${answers.patient_age || "उपलब्ध नहीं"}`,
+    `मरीज का लिंग: ${answers.patient_sex || "उपलब्ध नहीं"}`,
+    `मासिक धर्म की स्थिति: ${answers.menstruation_status || "लागू नहीं / उपलब्ध नहीं"}`,
+    `गर्भावस्था की स्थिति: ${answers.pregnancy_status || "लागू नहीं / नहीं पूछा गया"}`,
+    ""
+  ];
+  complaints.forEach((c,i)=>{
+    noteLines.push(`शिकायत ${i+1}`);
+    noteLines.push(c.complaint);
+    noteLines.push("");
+    noteLines.push("HPI");
+    const parts=Object.keys(c.hpi).map(k=>`${labels[k]||k}: ${c.hpi[k]}`);
+    noteLines.push(parts.length ? parts.join("\n") : "कोई HPI विवरण उपलब्ध नहीं।");
+    noteLines.push("");
+  });
+  noteLines.push(`नोट: इतिहास ${historian || "जानकारी देने वाले की पहचान उपलब्ध नहीं"} द्वारा दी गई जानकारी पर आधारित है। Final clinical assessment, examination, diagnosis और treatment clinician द्वारा किया जाएगा।`);
+  note.textContent=noteLines.join("\n");
+}
+
+function escapeHtml(s){
+ return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
+}
+function restart(){location.reload();}
+
+// Build 3.8: use event listeners instead of inline onclick handlers.
+// This makes the prototype more reliable when opened from Android Files/Chrome.
+function uiReady(){
+  const el=document.getElementById("jsStatus");
+  if(el) el.textContent="✅ JeevSetu JavaScript is running. Tap START HPI.";
+}
+function bindUI(){
+  const pairs=[
+    ["startHpiBtn",startEncounter], ["speakBtn",speakQuestion], ["voiceDiagBtn",testVoiceService],
+    ["voiceBtn",startVoice], ["micTestBtn",testMicrophone],
+    ["saveNextBtn",submitAnswer], ["skipBtn",skipQuestion],
+    ["restartBtn",restart]
+  ];
+  pairs.forEach(([id,fn])=>{
+    const b=document.getElementById(id);
+    if(b) b.addEventListener("click",fn);
+  });
+  uiReady();
+}
+if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",bindUI); else bindUI();
+
+</script>
+</body>
+</html>
