@@ -1,1 +1,0 @@
-JeevSetu Section 6 Standalone v6 — Unified Clinical Note table. Allopathic and other therapeutic products are rendered in one tabulated medication reconciliation table.
