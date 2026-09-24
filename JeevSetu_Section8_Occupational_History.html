@@ -1,0 +1,40 @@
+<!doctype html><html lang="hi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>JeevSetu — Section 8 Occupational History</title><style>body{font-family:Arial,'Noto Sans Devanagari',sans-serif;background:#f4f7f5;margin:0;color:#18332b}.wrap{max-width:760px;margin:auto;padding:18px}.card{background:white;border-radius:16px;padding:20px;box-shadow:0 2px 10px #0001;margin-bottom:14px}h1{font-size:24px;margin:0 0 6px}h2{font-size:19px;margin:0 0 10px}.sub{color:#64756e}.q{font-size:20px;line-height:1.5;margin:18px 0}.btns{display:flex;gap:10px;flex-wrap:wrap}.btn{border:0;border-radius:10px;padding:12px 18px;font-size:16px;background:#176b55;color:white}.btn.secondary{background:#e8efec;color:#18332b}.btn.danger{background:#a52b2b}.hidden{display:none}input,textarea,select{width:100%;box-sizing:border-box;padding:12px;border:1px solid #ccd8d3;border-radius:9px;font-size:16px;margin-top:8px}textarea{min-height:90px}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}.pill{display:inline-block;background:#e9f4ef;padding:6px 10px;border-radius:20px;margin:3px}.table{width:100%;border-collapse:collapse}.table th,.table td{border:1px solid #d9e2de;padding:9px;text-align:left;vertical-align:top}.table th{background:#eef5f1}.progress{height:8px;background:#e5ece9;border-radius:8px;overflow:hidden}.bar{height:100%;background:#176b55;width:0}.small{font-size:13px;color:#687872}</style></head><body><div class="wrap"><div class="card"><h1>JeevSetu AI</h1><div class="sub">SECTION 8 — OCCUPATIONAL HISTORY</div><div class="progress"><div id="bar" class="bar"></div></div></div><div id="app"></div></div><script>
+const A={currentWork:'',previousWork:'',previousYears:'',nature:'',hours:'',days:'',shift:'',dust:'',dustType:'',fumes:'',chemicals:'',chemicalName:'',protection:'',noise:'',bio:'',workSymptoms:'',awayBetter:'',injury:'',injuryDetails:'',treatmentBarrier:'',additional:'',confirmed:false};
+let i=0; const steps=[];
+function add(key,title,question,type='text',opts=[]){steps.push({key,title,question,type,opts});}
+add('currentWork','8.1 वर्तमान काम','आप अभी क्या काम करते हैं?');
+add('previousWork','8.2 पहले का काम','क्या आपने पहले कोई दूसरा काम किया है?','yesno');
+add('previousWorkDetail','8.2 पहले के काम','आपने पहले कौन-कौन से काम किए हैं?');
+add('previousYears','8.2 अवधि','हर काम लगभग कितने वर्षों तक किया?');
+add('nature','8.3 काम की प्रकृति','आपके काम में ज्यादातर बैठना पड़ता है, खड़ा रहना पड़ता है, चलना पड़ता है या शारीरिक मेहनत करनी पड़ती है?');
+add('hours','8.4 काम के घंटे','आप आमतौर पर दिन में कितने घंटे काम करते हैं?');
+add('days','8.4 काम के दिन','सप्ताह में कितने दिन काम करते हैं?');
+add('shift','8.4 शिफ्ट','क्या night shift या अलग-अलग shift होती है?','yesno');
+add('dust','8.5 धूल','क्या आपके काम में धूल के संपर्क में रहना पड़ता है?','yesno');
+add('dustType','8.5 धूल का प्रकार','किस तरह की धूल?');
+add('fumes','8.6 धुआं / fumes','क्या आपके काम में धुआं या chemical fumes के संपर्क में रहना पड़ता है?','yesno');
+add('chemicals','8.7 chemicals','क्या काम करते समय pesticide, chemical, fertilizer, paint या दूसरे chemicals के संपर्क में आना पड़ता है?','yesno');
+add('chemicalName','8.7 नाम','क्या आपको उसका नाम मालूम है?','yesno');
+add('protection','8.7 सुरक्षा','काम करते समय mask, gloves या दूसरी सुरक्षा चीजें इस्तेमाल करते हैं?','yesno');
+add('noise','8.8 शोर / vibration / तापमान','क्या आपके काम में बहुत तेज आवाज़, मशीन की vibration, बहुत ज्यादा गर्मी या बहुत ज्यादा ठंड का सामना करना पड़ता है?','yesno');
+add('bio','8.9 biological exposure','क्या आपके काम में जानवरों, मरीजों, biological material, sewage या medical waste के संपर्क में रहना पड़ता है?','yesno');
+add('workSymptoms','8.10 काम से जुड़ी परेशानी','क्या आपकी कोई परेशानी काम करने के दौरान बढ़ जाती है?','yesno');
+add('awayBetter','8.10 काम से दूर रहने पर','काम से कुछ दिनों के लिए दूर रहने पर क्या वह परेशानी कम होती है?','yesno');
+add('injury','8.11 चोट / accident','क्या काम के दौरान कभी कोई बड़ी चोट, accident या fracture हुआ है?','yesno');
+add('injuryDetails','8.11 चोट का विवरण','क्या हुआ था और कब हुआ था?');
+add('treatmentBarrier','8.12 इलाज में बाधा','क्या आपके काम की वजह से डॉक्टर के पास जाना, जांच कराना या दवा समय पर लेना कभी मुश्किल होता है?','yesno');
+add('additional','8.13 अतिरिक्त जानकारी','क्या आप अपने काम या काम से जुड़े स्वास्थ्य के बारे में और कुछ बताना चाहते हैं?','yesno');
+add('additionalText','8.13 अतिरिक्त जानकारी','कृपया अपनी अतिरिक्त जानकारी बताएं।');
+add('confirmation','8.14 पुष्टि','मैंने आपके काम और काम से जुड़े स्वास्थ्य जोखिमों की जानकारी दर्ज की है। क्या इसमें कोई गलती है?','yesno');
+function visible(s){if(s.key==='previousWorkDetail'||s.key==='previousYears') return A.previousWork==='हाँ'; if(s.key==='dustType')return A.dust==='हाँ';if(s.key==='chemicalName'||s.key==='protection')return A.chemicals==='हाँ';if(s.key==='awayBetter')return A.workSymptoms==='हाँ';if(s.key==='injuryDetails')return A.injury==='हाँ';if(s.key==='additionalText')return A.additional==='हाँ';return true}
+function valText(){let s=steps[i];return A[s.key]||''}
+function render(){while(i<steps.length&&!visible(steps[i]))i++;if(i>=steps.length){showNote();return}let s=steps[i];document.getElementById('bar').style.width=(i/steps.length*100)+'%';let control='';if(s.type==='yesno')control='<div class="btns"><button class="btn" onclick="setv(\'हाँ\')">हाँ</button><button class="btn secondary" onclick="setv(\'नहीं\')">नहीं</button></div>';else control='<input id="inp" value="'+esc(valText())+'" placeholder="अपना उत्तर लिखें" onkeydown="if(event.key===\'Enter\')next()"><div class="btns" style="margin-top:12px"><button class="btn" onclick="next()">आगे</button><button class="btn secondary" onclick="back()">पीछे</button></div>';document.getElementById('app').innerHTML='<div class="card"><div class="small">'+s.title+'</div><div class="q">'+s.question+'</div>'+control+'</div>'}
+function esc(x){return String(x).replaceAll('&','&amp;').replaceAll('"','&quot;').replaceAll('<','&lt;').replaceAll('>','&gt;')}
+function setv(v){A[steps[i].key]=v;save();i++;render()}
+function next(){let x=document.getElementById('inp');if(!x||!x.value.trim()){alert('कृपया उत्तर दर्ज करें।');return}A[steps[i].key]=x.value.trim();save();i++;render()}
+function back(){if(i>0)i--;render()}
+function save(){localStorage.setItem('JeevSetu_Section8',JSON.stringify(A))}
+function showNote(){document.getElementById('bar').style.width='100%';document.getElementById('app').innerHTML='<div class="card"><h2>Section 8 Clinical Note Preview</h2><div id="note"></div><div class="btns"><button class="btn" onclick="window.print()">Print / Save PDF</button><button class="btn secondary" onclick="location.reload()">Start Again</button></div></div>';document.getElementById('note').innerHTML=table()}
+function table(){let rows=[['वर्तमान काम',A.currentWork],['पहले का काम',A.previousWork==='हाँ'?A.previousWorkDetail+' ('+A.previousYears+')':'नहीं'],['काम की प्रकृति',A.nature],['काम के घंटे',A.hours+' घंटे/दिन; '+A.days+' दिन/सप्ताह'],['Night / shift',A.shift],['धूल',A.dust+(A.dust==='हाँ'&&A.dustType?' — '+A.dustType:'')],['धुआं / chemical fumes',A.fumes],['Pesticide / chemicals',A.chemicals+(A.chemicalName==='हाँ'?' — नाम मालूम है':'')],['सुरक्षा उपकरण',A.protection],['शोर / vibration / गर्मी / ठंड',A.noise],['Animals / biological exposure',A.bio],['काम से बढ़ने वाली परेशानी',A.workSymptoms],['काम से दूर रहने पर कमी',A.awayBetter],['Occupational injury',A.injury+(A.injury==='हाँ'&&A.injuryDetails?' — '+A.injuryDetails:'')],['इलाज में बाधा',A.treatmentBarrier],['अतिरिक्त जानकारी',A.additional==='हाँ'?A.additionalText||'दी गई':'नहीं']];return '<table class="table"><tr><th>विषय</th><th>दर्ज जानकारी</th></tr>'+rows.map(r=>'<tr><td>'+esc(r[0])+'</td><td>'+esc(r[1]||'—')+'</td></tr>').join('')+'</table><p class="small">Final confirmation: '+(A.confirmed?'हाँ':'दर्ज')+'</p>'}
+const old=localStorage.getItem('JeevSetu_Section8');if(old)try{Object.assign(A,JSON.parse(old))}catch(e){}render();
+</script></body></html>
