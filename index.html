@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>JeevSetu — Section 9: Physical Activity & Exercise</title>
+<style>
+body{font-family:Arial,sans-serif;max-width:820px;margin:auto;padding:18px;line-height:1.55;background:#f4f6f8;color:#222}.card{background:#fff;padding:22px;border-radius:14px;box-shadow:0 2px 10px #ddd}h1{font-size:24px}.q{font-size:21px;margin:20px 0}.small{font-size:15px;color:#666}.btn{font-size:18px;padding:11px 20px;margin:6px;border-radius:8px;border:1px solid #888;background:#fff}.btn:active{transform:scale(.98)}input{font-size:18px;padding:10px;width:90%;max-width:650px}.report h2{margin-bottom:6px}.report table{width:100%;border-collapse:collapse;margin:12px 0}.report th,.report td{border:1px solid #ccc;padding:8px;text-align:left;vertical-align:top}.report th{background:#f0f2f4}.flag{border-left:5px solid #b00020;padding:10px;background:#fff4f4;margin:10px 0}.ok{border-left:5px solid #26734d;padding:10px;background:#f3faf6;margin:10px 0}.actions{margin-top:16px}.summary{background:#f7f9fa;border:1px solid #ddd;border-radius:10px;padding:12px;margin:14px 0}.summary table{margin-top:8px}@media print{body{background:#fff}.actions{display:none}.card{box-shadow:none}}
+</style>
+</head>
+<body>
+<div class="card">
+<h1>JeevSetu — Section 9</h1>
+<div id="app"></div>
+</div>
+<script>
+"use strict";
+const answers={};
+let step=0;
+let current=[];
+let pos=0;
+
+const sections=[
+{id:"9.1",q:"आप अपने रोज़ के काम में ज़्यादातर समय क्या करते हैं?",type:"choice",options:["ज़्यादातर बैठकर","ज़्यादातर खड़े होकर या चलते-फिरते","ज़्यादातर शारीरिक मेहनत वाला काम"]},
+{id:"9.2",q:"एक सामान्य दिन में कुल मिलाकर लगभग कितने घंटे आप बैठते हैं?",type:"text"},
+{id:"9.3",q:"क्या आप अपने रोज़ के काम के अलावा अलग से टहलते हैं या कोई कसरत करते हैं?",type:"yesno",yes:[
+{id:"9.3a",q:"आप क्या करते हैं?",type:"text"},
+{id:"9.3b",q:"सप्ताह में कितने दिन?",type:"text"},
+{id:"9.3c",q:"एक दिन में लगभग कितनी देर?",type:"text"}]},
+{id:"9.4",q:"क्या आप ऐसी कोई कसरत करते हैं जिससे शरीर की ताकत बनी रहे या बढ़े?",type:"yesno",yes:[
+{id:"9.4a",q:"जैसे वजन उठाना, रबर की पट्टी से कसरत करना या ऐसी कसरत जिसमें अपने शरीर का वजन इस्तेमाल होता है। आप इनमें से या इनके अलावा क्या करते हैं?",type:"text"}]},
+{id:"9.5",q:"चलते समय या खड़े होते समय क्या कभी आपका शरीर डगमगाता है या आपको गिरने का डर लगता है?",type:"yesno",yes:[{id:"9.5a",q:"क्या कभी आप गिरे हैं?",type:"yesno"}]},
+{id:"9.6",q:"क्या आपके शरीर या जोड़ों में अकड़न रहती है?",type:"yesno",yes:[{id:"9.6a",q:"क्या इसे कम करने के लिए कोई कसरत या stretching करते हैं?",type:"text"}]},
+{id:"9.7",q:"क्या पहले की तुलना में अब आपका चलना-फिरना या शारीरिक काम कम हो गया है?",type:"yesno",yes:[{id:"9.7a",q:"कब से और क्यों?",type:"text"}]},
+{id:"9.8",q:"चलने, सीढ़ी चढ़ने या कसरत करने पर क्या आपको सांस फूलती है, सीने में दर्द होता है, चक्कर आता है या बहुत ज्यादा थकान होती है?",type:"yesno",clinical:true},
+{id:"9.9",q:"अगर आप अलग से टहलते या कसरत नहीं करते, तो इसकी मुख्य वजह क्या है?",type:"text",conditional:true},
+{id:"9.10",q:"क्या आप अपने चलने-फिरने या कसरत को थोड़ा बढ़ाना चाहेंगे?",type:"yesno"},
+{id:"9.11",q:"क्या आप अपनी रोज़ की शारीरिक गतिविधि या कसरत के बारे में कुछ और बताना चाहते हैं?",type:"yesno",yes:[
+{id:"9.11a",q:"कृपया बताइए।",type:"text"}]},
+{id:"9.12",q:"मैंने आपकी रोज़ की शारीरिक गतिविधि और कसरत की जानकारी इस तरह दर्ज की है। क्या यह सही है?",type:"yesno",confirm:true}
+];
+
+const labels={
+"9.1":"Work-related physical activity","9.2":"Sitting vs active time","9.3":"Additional walking/exercise","9.3a":"Exercise/activity type","9.3b":"Days per week","9.3c":"Duration per day","9.4":"Strength exercise","9.4a":"Strength exercise details","9.5":"Balance/fall concern","9.5a":"History of falls","9.5b":"Falls in past year","9.6":"Body/joint stiffness","9.6a":"Exercise/stretching for stiffness","9.7":"Reduced activity compared with before","9.7a":"Duration and reason for reduction","9.8":"Symptoms with exertion","9.9":"Reason for not exercising","9.10":"Willingness to increase activity","9.11":"Additional information","9.11a":"Additional activity/exercise information","9.12":"Patient confirmation"};
+
+function esc(x){return String(x??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));}
+function shouldSkip(s){return s.conditional && answers["9.3"]!=="नहीं";}
+function render(){
+ if(step>=sections.length){finish();return;}
+ const s=sections[step];
+ if(shouldSkip(s)){step++;render();return;}
+ let h='<div class="q"><b>'+esc(s.id)+'</b><br>'+esc(s.q)+'</div>';
+ if(s.type==="yesno"){
+   h+='<button class="btn" onclick="answer(&quot;हाँ&quot;)">हाँ</button>';
+   h+='<button class="btn" onclick="answer(&quot;नहीं&quot;)">नहीं</button>';
+ }else if(s.type==="choice"){
+   s.options.forEach(function(o){
+     h+='<button class="btn" onclick="answer(\"'+o+'\")">'+esc(o)+'</button>';
+   });
+ }else{
+   h+='<input id="txt" autocomplete="off">';
+   h+='<br><button class="btn" onclick="textAnswer()">आगे</button>';
+ }
+ document.getElementById("app").innerHTML=h;
+ const input=document.getElementById("txt"); if(input) input.focus();
+}
+function answer(v){
+ const s=sections[step]; answers[s.id]=v;
+ if(s.clinical && v==="हाँ") answers.__clinical=true;
+ if(v==="हाँ" && s.yes){
+   current=s.yes.slice();
+   if(s.id==="9.5") current.push({id:"9.5b",q:"पिछले एक साल में कितनी बार?",type:"text",onlyIf:"9.5a"});
+   pos=0;askSub();return;
+ }
+ next();
+}
+function askSub(){
+ if(pos>=current.length){next();return;}
+ const s=current[pos];
+ if(s.onlyIf && answers[s.onlyIf]!=="हाँ"){pos++;askSub();return;}
+ let h='<div class="q"><b>'+esc(s.id)+'</b><br>'+esc(s.q)+'</div>';
+ if(s.type==="yesno"){
+   h+='<button class="btn" onclick="subAnswer(&quot;हाँ&quot;)">हाँ</button>';
+   h+='<button class="btn" onclick="subAnswer(&quot;नहीं&quot;)">नहीं</button>';
+ }else{
+   h+='<input id="txt" autocomplete="off">';
+   h+='<br><button class="btn" onclick="textSub()">आगे</button>';
+ }
+ document.getElementById("app").innerHTML=h;
+ const input=document.getElementById("txt"); if(input) input.focus();
+}
+function subAnswer(v){answers[current[pos].id]=v;pos++;askSub();}
+function textSub(){answers[current[pos].id]=document.getElementById("txt").value.trim();pos++;askSub();}
+function textAnswer(){answers[sections[step].id]=document.getElementById("txt").value.trim();next();}
+function next(){step++;current=[];pos=0;render();}
+function summaryHTML(){
+ let rows="";
+ Object.keys(labels).forEach(k=>{if(k!=="9.11" && answers[k]!==undefined) rows+='<tr><th>'+esc(labels[k])+'</th><td>'+esc(answers[k])+'</td></tr>';});
+ return '<div class="summary"><b>दर्ज जानकारी:</b><table>'+rows+'</table></div>';
+}
+function confirmStep(){
+ document.getElementById("app").innerHTML='<div class="q"><b>9.12</b><br>मैंने आपकी रोज़ की physical activity और exercise की जानकारी इस तरह दर्ज की है। क्या यह सही है?</div>'+summaryHTML()+'<button class="btn" onclick="confirmReport(&quot;हाँ&quot;)">हाँ</button><button class="btn" onclick="confirmReport(&quot;नहीं&quot;)">नहीं</button>';
+}
+function finish(){confirmStep();}
+function confirmReport(v){
+ answers["9.12"]=v;
+ if(v==="हाँ"){finalReport();}
+ else{
+   document.getElementById("app").innerHTML='<div class="flag"><b>कृपया जानकारी की जाँच करें।</b><br>आपने बताया कि दर्ज जानकारी सही नहीं है। Section 9 को फिर से शुरू करके सही जानकारी दर्ज करें।</div><button class="btn" onclick="location.reload()">Section 9 फिर से शुरू करें</button>';
+ }
+}
+function finalReport(){
+ let rows=""; Object.keys(labels).forEach(k=>{if(answers[k]!==undefined) rows+='<tr><th>'+esc(labels[k])+'</th><td>'+esc(answers[k])+'</td></tr>';});
+ let flags=[];
+ if(answers["9.8"]==="हाँ") flags.push("Exertional symptoms reported: breathlessness, chest pain, dizziness or marked fatigue. Clinical assessment is required.");
+ if(answers["9.5a"]==="हाँ") flags.push("History of fall reported in the context of balance/fall concern. Review fall risk and circumstances.");
+ if(answers["9.7"]==="हाँ") flags.push("Physical activity has reduced compared with before; review onset and reason.");
+ const f=flags.length?'<div class="flag"><b>Clinician attention:</b><ul>'+flags.map(x=>'<li>'+esc(x)+'</li>').join("")+'</ul></div>':'<div class="ok">No specific clinician-attention flag was triggered by the answers recorded in this section.</div>';
+ document.getElementById("app").innerHTML='<div class="report"><h2>Clinician Report — Physical Activity & Exercise</h2><div class="small">Section 9 | Patient-reported information | This section does not by itself establish a diagnosis.</div>'+f+'<table><tr><th>Clinical item</th><th>Recorded response</th></tr>'+rows+'</table><p><b>Patient confirmation:</b> '+esc(answers["9.12"]||"Not recorded")+'</p><div class="actions"><button class="btn" onclick="window.print()">Print / Save as PDF</button><button class="btn" onclick="location.reload()">Start Again</button></div></div>';
+}
+render();
+</script>
+</body>
+</html>
