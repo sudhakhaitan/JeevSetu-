@@ -1,1 +1,0 @@
-JeevSetu Section 12 — Alcohol History. GitHub Pages entry file: index.html. Section 12.10 supports multiple selection and generates a clinician alert for reported withdrawal symptoms.
