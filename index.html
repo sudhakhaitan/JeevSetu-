@@ -1,0 +1,41 @@
+<!DOCTYPE html><html lang="hi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>JeevSetu Section 15 — Sleep History</title><style>body{font-family:Arial;max-width:820px;margin:auto;padding:18px;background:#f4f6f8}.card{background:white;padding:22px;border-radius:14px}.q{font-size:21px;margin:20px 0}.btn{font-size:18px;padding:11px 20px;margin:6px;border-radius:8px}input,textarea{font-size:18px;padding:10px;width:90%;box-sizing:border-box}textarea{min-height:100px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ccc;padding:8px;text-align:left;vertical-align:top}.flag{padding:12px;background:#fff4f4;border-left:5px solid #b00020}.ok{padding:12px;background:#f3faf6;border-left:5px solid #26734d}.note{font-size:15px;color:#555}</style></head><body><div class="card"><h1>JeevSetu — Section 15<br>Sleep History</h1><div id="app"></div></div><script>
+const app=document.getElementById('app');const A={};let i=0;
+const S=[
+{id:'15.1',q:'आप आमतौर पर रात में कितने बजे सोने जाते हैं और सुबह कितने बजे उठते हैं?',t:'text'},
+{id:'15.1a',q:'लगभग कितने घंटे की नींद हो जाती है?',t:'text'},
+{id:'15.2',q:'बिस्तर पर जाने के बाद आपको नींद आने में परेशानी होती है?',t:'yn'},
+{id:'15.2a',q:'आमतौर पर नींद आने में कितना समय लगता है?',t:'text',if:['15.2','हाँ']},
+{id:'15.3',q:'क्या रात में आपकी नींद बार-बार खुलती है?',t:'yn'},
+{id:'15.3a',q:'आमतौर पर किस वजह से नींद खुलती है?',t:'text',if:['15.3','हाँ']},
+{id:'15.4',q:'नींद खुलने के बाद आपको दोबारा सोने में परेशानी होती है?',t:'yn',if:['15.3','हाँ']},
+{id:'15.4a',q:'लगभग कितनी देर बाद दोबारा नींद आती है?',t:'text',if:['15.4','हाँ']},
+{id:'15.5',q:'क्या आपको बहुत तेज खर्राटे आते हैं?',t:'yn'},
+{id:'15.5a',q:'क्या आपके साथ सोने वाले व्यक्ति ने कभी बताया है कि सोते समय आपकी सांस रुक जाती है या कुछ समय के लिए बंद जैसी हो जाती है?',t:'yn',if:['15.5','हाँ']},
+{id:'15.5b',q:'क्या कभी सांस रुकने के बाद आप हड़बड़ाकर या घुटन जैसी महसूस होने पर जागे हैं?',t:'yn',if:['15.5','हाँ']},
+{id:'15.5c',q:'सुबह उठने पर क्या मुंह बहुत सूखा रहता है या सिर में दर्द रहता है?',t:'yn',if:['15.5','हाँ']},
+{id:'15.5d',q:'दिन में पर्याप्त नींद लेने के बाद भी क्या आपको बहुत नींद आती रहती है?',t:'yn',if:['15.5','हाँ']},
+{id:'15.5e',q:'क्या रात में बार-बार पेशाब करने के लिए उठना पड़ता है?',t:'yn',if:['15.5','हाँ']},
+{id:'15.6',q:'क्या रात में सोते समय आपके पैर या शरीर की मांसपेशियों में अचानक खिंचाव या ऐंठन होती है?',t:'yn'},
+{id:'15.6a',q:'किस जगह?',t:'text',if:['15.6','हाँ']},
+{id:'15.6b',q:'कितनी बार?',t:'text',if:['15.6','हाँ']},
+{id:'15.6c',q:'कितनी देर रहती है?',t:'text',if:['15.6','हाँ']},
+{id:'15.6d',q:'क्या इससे आपकी नींद खुल जाती है?',t:'yn',if:['15.6','हाँ']},
+{id:'15.7',q:'क्या आपको रात में बार-बार डरावने या परेशान करने वाले सपने आते हैं?',t:'yn'},
+{id:'15.7a',q:'क्या ऐसे सपनों की वजह से आपकी नींद खुल जाती है?',t:'yn',if:['15.7','हाँ']},
+{id:'15.8',q:'क्या कभी सोते समय आप बोलते, चिल्लाते, हाथ-पैर चलाते या बिस्तर से उठकर चलने लगते हैं?',t:'yn'},
+{id:'15.9',q:'रात में आराम करते समय क्या आपके पैरों को हिलाने की बहुत इच्छा होती है और पैर हिलाने से कुछ आराम मिलता है?',t:'yn'},
+{id:'15.10',q:'शाम या रात में चाय या coffee लेते हैं?',t:'yn'},
+{id:'15.10a',q:'सोने से पहले मोबाइल या टीवी कितनी देर देखते हैं?',t:'text'},
+{id:'15.11',q:'अगर आपकी नींद ठीक नहीं होती, तो क्या अगले दिन काम करने, ध्यान लगाने या रोज़ के काम करने में परेशानी होती है?',t:'yn'},
+{id:'15.12',q:'सुबह उठने के बाद क्या आपको लगता है कि आपकी नींद पूरी और अच्छी हुई है?',t:'yn'},
+{id:'15.13',q:'मैंने आपकी नींद से जुड़ी जानकारी इस तरह समझी है। क्या इसमें कोई गलती है या कोई महत्वपूर्ण बात छूट गई है?',t:'yn'},
+{id:'15.13a',q:'कृपया बताइए क्या सुधार या महत्वपूर्ण बात जोड़नी है।',t:'text',if:['15.13','हाँ']}
+];
+const L={};S.forEach(s=>L[s.id]=s.q);
+function ok(s){if(!s.if)return true;return A[s.if[0]]===s.if[1]}
+function esc(x){return String(x??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+function render(){while(i<S.length&&!ok(S[i]))i++;if(i>=S.length)return report();let s=S[i];let h='<div class="q"><b>'+s.id+'</b><br>'+esc(s.q)+'</div>';if(s.t==='yn')h+='<button class="btn" onclick="ans(\'हाँ\')">हाँ</button><button class="btn" onclick="ans(\'नहीं\')">नहीं</button>';else h+='<textarea id="x"></textarea><br><button class="btn" onclick="txt()">आगे</button>';app.innerHTML=h;let x=document.getElementById('x');if(x)x.focus()}
+function ans(v){A[S[i].id]=v;next()}function txt(){A[S[i].id]=document.getElementById('x').value.trim();next()}function next(){i++;render()}
+function summary(){let r='';Object.keys(A).forEach(k=>{r+='<tr><th>'+esc(L[k]||k)+'</th><td>'+esc(A[k])+'</td></tr>'});return '<table>'+r+'</table>'}
+function report(){let alerts=[];if(A['15.5a']==='हाँ'||A['15.5b']==='हाँ'||A['15.5d']==='हाँ')alerts.push('Possible sleep-disordered breathing: clinician review and objective sleep assessment may be considered.');if(A['15.6d']==='हाँ')alerts.push('Night cramps are disturbing sleep.');if(A['15.11']==='हाँ')alerts.push('Daytime functional impact of poor sleep reported.');let status=alerts.length?'<div class="flag"><b>Clinician attention:</b><br>'+alerts.map(esc).join('<br>')+'</div>':'<div class="ok"><b>Sleep history recorded.</b></div>';app.innerHTML='<h2>Clinician Report — Section 15: Sleep History</h2>'+status+'<p><b>Sleep duration:</b> '+esc(A['15.1a']||'Not recorded')+'<br><b>Difficulty falling asleep:</b> '+esc(A['15.2']||'Not recorded')+'<br><b>Night awakening:</b> '+esc(A['15.3']||'Not recorded')+'<br><b>Snoring:</b> '+esc(A['15.5']||'Not recorded')+'<br><b>Morning refreshed:</b> '+esc(A['15.12']||'Not recorded')+'<br><b>Confirmation issue reported:</b> '+esc(A['15.13']||'Not recorded')+'</p>'+summary()+'<button class="btn" onclick="window.print()">Print / Save as PDF</button><button class="btn" onclick="location.reload()">Start Again</button>'}
+render();</script></div></body></html>
