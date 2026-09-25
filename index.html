@@ -1,0 +1,61 @@
+<!DOCTYPE html><html lang="hi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>JeevSetu Section 13 — Tobacco, Nicotine & Other Substance Use</title><style>body{font-family:Arial;max-width:820px;margin:auto;padding:18px;background:#f4f6f8}.card{background:white;padding:22px;border-radius:14px}.q{font-size:21px;margin:20px 0}.btn{font-size:18px;padding:11px 20px;margin:6px;border-radius:8px}input,textarea{font-size:18px;padding:10px;width:90%}textarea{min-height:90px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ccc;padding:8px;text-align:left;vertical-align:top}.flag{padding:12px;background:#fff4f4;border-left:5px solid #b00020}.ok{padding:12px;background:#f3faf6;border-left:5px solid #26734d}.note{font-size:15px;color:#555}</style></head><body><div class="card"><h1>JeevSetu — Section 13<br>Tobacco, Nicotine & Other Substance Use</h1><div id="app"></div></div><script>
+const app=document.getElementById('app');const A={};let i=0,sub=[],p=0;
+const S=[
+{id:'13.1',q:'क्या आप बीड़ी, सिगरेट या तंबाकू वाली कोई चीज़ इस्तेमाल करते हैं?',t:'yn'},
+{id:'13.1a',q:'क्या आपने पहले कभी इस्तेमाल किया है?',t:'yn',if:['13.1','नहीं']},
+{id:'13.2',q:'आप क्या इस्तेमाल करते हैं—बीड़ी, सिगरेट या कुछ और?',t:'text',if:['13.1','हाँ']},
+{id:'13.2a',q:'एक दिन में लगभग कितनी लेते हैं?',t:'text',if:['13.1','हाँ']},
+{id:'13.2b',q:'कितने वर्षों से?',t:'text',if:['13.1','हाँ']},
+{id:'13.2P',q:'जब आप पहले बीड़ी, सिगरेट या तंबाकू लेते थे, तब आप क्या इस्तेमाल करते थे—बीड़ी, सिगरेट या कुछ और?',t:'text',if:['13.1a','हाँ']},
+{id:'13.2aP',q:'उस समय एक दिन में लगभग कितनी लेते थे?',t:'text',if:['13.1a','हाँ']},
+{id:'13.2bP',q:'कितने वर्षों तक लेते रहे?',t:'text',if:['13.1a','हाँ']},
+{id:'13.3',q:'आपने पहली बार बीड़ी या सिगरेट पीना क्यों शुरू किया था?',t:'text',if:['13.1','हाँ']},
+{id:'13.3P',q:'आपने पहली बार बीड़ी या सिगरेट पीना क्यों शुरू किया था?',t:'text',if:['13.1a','हाँ']},
+{id:'13.3a',q:'क्या दोस्तों, साथ काम करने वालों, काम की जगह, परिवार, तनाव, देखा-देखी या किसी और वजह से शुरू किया था?',t:'text',if:['13.1','हाँ']},
+{id:'13.3aP',q:'क्या दोस्तों, साथ काम करने वालों, काम की जगह, परिवार, तनाव, देखा-देखी या किसी और वजह से शुरू किया था?',t:'text',if:['13.1a','हाँ']},
+{id:'13.4',q:'क्या आपको बीड़ी काम की जगह या मजदूरी के साथ भी मिलती है?',t:'yn',if:['13.1','हाँ']},
+{id:'13.4a',q:'लगभग दिन में कितनी बीड़ी मिलती है?',t:'text',if:['13.4','हाँ']},
+{id:'13.4b',q:'क्या इससे आपकी बीड़ी पीने की मात्रा बढ़ जाती है?',t:'yn',if:['13.4','हाँ']},
+{id:'13.4c',q:'अगर काम की जगह से बीड़ी न मिले, तो क्या आप फिर भी उतनी ही बीड़ी खरीदकर पीते हैं?',t:'yn',if:['13.4','हाँ']},
+{id:'13.4P',q:'जब आप बीड़ी लेते थे, क्या आपको बीड़ी काम की जगह या मजदूरी के साथ भी मिलती थी?',t:'yn',if:['13.1a','हाँ']},
+{id:'13.4aP',q:'उस समय लगभग दिन में कितनी बीड़ी मिलती थी?',t:'text',if:['13.4P','हाँ']},
+{id:'13.4bP',q:'क्या इससे उस समय आपकी बीड़ी पीने की मात्रा बढ़ जाती थी?',t:'yn',if:['13.4P','हाँ']},
+{id:'13.4cP',q:'अगर काम की जगह से बीड़ी न मिलती, तो क्या आप फिर भी उतनी ही बीड़ी खरीदकर पीते थे?',t:'yn',if:['13.4P','हाँ']},
+{id:'13.5',q:'क्या आपके साथ काम करने वाले लोग भी बीड़ी या तंबाकू लेते हैं?',t:'yn'},
+{id:'13.6',q:'क्या आप गुटखा, खैनी, जर्दा, तंबाकू वाला पान या तंबाकू की कोई और चीज़ मुंह में रखते या चबाते हैं?',t:'yn'},
+{id:'13.6a',q:'कौन-सी चीज़?',t:'text',if:['13.6','हाँ']},
+{id:'13.6b',q:'दिन में कितनी बार?',t:'text',if:['13.6','हाँ']},
+{id:'13.6c',q:'कितने वर्षों से?',t:'text',if:['13.6','हाँ']},
+{id:'13.6P',q:'क्या आप पहले गुटखा, खैनी, जर्दा, तंबाकू वाला पान या तंबाकू की कोई और चीज़ मुंह में रखते या चबाते थे?',t:'yn',if:['13.1a','हाँ']},
+{id:'13.6aP',q:'कौन-सी चीज़?',t:'text',if:['13.6P','हाँ']},
+{id:'13.6bP',q:'उस समय दिन में कितनी बार लेते थे?',t:'text',if:['13.6P','हाँ']},
+{id:'13.6cP',q:'कितने वर्षों तक लेते रहे?',t:'text',if:['13.6P','हाँ']},
+{id:'13.7',q:'क्या आप सुपारी या ऐसी कोई चीज़ चबाते हैं जिसमें तंबाकू न हो?',t:'yn'},
+{id:'13.7a',q:'कौन-सी चीज़ और कितनी बार?',t:'text',if:['13.7','हाँ']},
+{id:'13.8',q:'क्या आप nicotine वाली कोई दूसरी चीज़ इस्तेमाल करते हैं, जैसे nicotine pouch या electronic smoking product?',t:'yn'},
+{id:'13.8a',q:'कौन-सी चीज़ और कितनी बार?',t:'text',if:['13.8','हाँ']},
+{id:'13.9',q:'क्या आपके घर या काम की जगह पर कोई और व्यक्ति नियमित रूप से बीड़ी या smoking करता है और आपको उसका धुआं मिलता है?',t:'yn'},
+{id:'13.10',q:'जिस दिन आप सामान्य से ज्यादा तंबाकू या smoking करते हैं, क्या उस दिन या उसके बाद आपकी कोई परेशानी बढ़ जाती है?',t:'yn',if:['13.1','हाँ']},
+{id:'13.10a',q:'कौन-सी परेशानी?',t:'text',if:['13.10','हाँ']},
+{id:'13.10b',q:'कितनी देर बाद बढ़ती है?',t:'text',if:['13.10','हाँ']},
+{id:'13.10P',q:'जब आप पहले सामान्य से ज्यादा तंबाकू या smoking करते थे, क्या उस दिन या उसके बाद आपकी कोई परेशानी बढ़ जाती थी?',t:'yn',if:['13.1a','हाँ']},
+{id:'13.10aP',q:'कौन-सी परेशानी बढ़ती थी?',t:'text',if:['13.10P','हाँ']},
+{id:'13.10bP',q:'कितनी देर बाद बढ़ती थी?',t:'text',if:['13.10P','हाँ']},
+{id:'13.11',q:'क्या आपने कभी तंबाकू या smoking छोड़ने की कोशिश की है?',t:'yn',if:['13.1','हाँ']},
+{id:'13.11a',q:'कितने समय तक बंद रख पाए?',t:'text',if:['13.11','हाँ']},
+{id:'13.11b',q:'फिर दोबारा शुरू करने की क्या वजह रही?',t:'text',if:['13.11','हाँ']},
+{id:'13.11P',q:'क्या आपने पहले तंबाकू या smoking छोड़ने की कोशिश की थी?',t:'yn',if:['13.1a','हाँ']},
+{id:'13.11aP',q:'कितने समय तक बंद रख पाए थे?',t:'text',if:['13.11P','हाँ']},
+{id:'13.11bP',q:'फिर दोबारा शुरू करने की क्या वजह रही थी?',t:'text',if:['13.11P','हाँ']},
+{id:'13.12',q:'क्या आप शराब और तंबाकू के अलावा कोई और नशे की चीज़ इस्तेमाल करते हैं?',t:'yn'},
+{id:'13.12a',q:'कृपया बताइए आप क्या इस्तेमाल करते हैं, कितनी बार और कितने समय से।',t:'text',if:['13.12','हाँ']},
+{id:'13.13',q:'मैंने तंबाकू और दूसरी चीज़ों के इस्तेमाल की जानकारी दर्ज की है। क्या इसमें कोई गलती है?',t:'confirm'}];
+const L={};S.forEach(s=>L[s.id]=s.q);
+function ok(s){if(!s.if)return true;return A[s.if[0]]===s.if[1]}
+function render(){while(i<S.length&&!ok(S[i]))i++;if(i>=S.length)return report();let s=S[i];if(s.t==='confirm')return confirm();let h='<div class="q"><b>'+s.id+'</b><br>'+esc(s.q)+'</div>';if(s.t==='yn')h+='<button class="btn" onclick="ans(\'हाँ\')">हाँ</button><button class="btn" onclick="ans(\'नहीं\')">नहीं</button>';else h+='<textarea id="x"></textarea><br><button class="btn" onclick="txt()">आगे</button>';app.innerHTML=h;let x=document.getElementById('x');if(x)x.focus()}
+function esc(x){return String(x??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+function ans(v){A[S[i].id]=v;next()}function txt(){A[S[i].id]=document.getElementById('x').value.trim();next()}function next(){i++;render()}
+function summary(){let r='';Object.keys(A).forEach(k=>r+='<tr><th>'+esc(L[k]||k)+'</th><td>'+esc(A[k])+'</td></tr>');return '<table>'+r+'</table>'}
+function confirm(){app.innerHTML='<div class="q"><b>13.13</b><br>'+esc(S[S.length-1].q)+'</div>'+summary()+'<button class="btn" onclick="cr(\'हाँ\')">हाँ — Clinical Note बनाएं</button><button class="btn" onclick="cr(\'नहीं\')">नहीं</button>'}
+function cr(v){A['13.13']=v;if(v==='हाँ')report();else app.innerHTML='<div class="flag"><b>कृपया जानकारी की जाँच करें।</b></div><button class="btn" onclick="location.reload()">Section 13 फिर से शुरू करें</button>'}
+function report(){let current=A['13.1']==='हाँ',past=A['13.1a']==='हाँ',other=A['13.12']==='हाँ';let title='Clinician Report — Tobacco, Nicotine & Other Substance Use';let alerts=[];if(A['13.10']==='हाँ'||A['13.10P']==='हाँ')alerts.push('Symptoms may worsen with increased tobacco/smoking use.');if(A['13.11']==='हाँ'||A['13.11P']==='हाँ')alerts.push('Previous quit attempt reported.');let status=alerts.length?'<div class="flag"><b>Clinician attention:</b><br>'+alerts.map(esc).join('<br>')+'</div>':'<div class="ok"><b>Substance-use history recorded.</b></div>';app.innerHTML='<h2>'+esc(title)+'</h2>'+status+summary()+'<p><b>Current tobacco/nicotine use:</b> '+esc(A['13.1']||'Not recorded')+'<br><b>Past tobacco/nicotine use:</b> '+esc(A['13.1a']||'Not applicable')+'<br><b>Other substance use:</b> '+esc(A['13.12']||'Not recorded')+'</p><button class="btn" onclick="window.print()">Print / Save as PDF</button><button class="btn" onclick="location.reload()">Start Again</button>'}render();</script></div></body></html>
