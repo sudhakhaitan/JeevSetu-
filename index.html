@@ -1,0 +1,33 @@
+<!DOCTYPE html><html lang="hi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>JeevSetu Section 16 — Stress, Emotional & Psychological History</title><style>body{font-family:Arial;max-width:820px;margin:auto;padding:18px;background:#f4f6f8}.card{background:white;padding:22px;border-radius:14px}.q{font-size:21px;margin:20px 0}.btn{font-size:18px;padding:11px 20px;margin:6px;border-radius:8px}input,textarea{font-size:18px;padding:10px;width:90%;box-sizing:border-box}textarea{min-height:100px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ccc;padding:8px;text-align:left;vertical-align:top}.flag{padding:12px;background:#fff4f4;border-left:5px solid #b00020}.ok{padding:12px;background:#f3faf6;border-left:5px solid #26734d}</style></head><body><div class="card"><h1>JeevSetu — Section 16<br>Stress, Emotional & Psychological History</h1><div id="app"></div></div><script>
+const app=document.getElementById('app');const A={};let i=0;
+const S=[
+{id:'16.1',q:'क्या इन दिनों आपके जीवन में कोई ऐसी बात है जिसकी वजह से आपको ज्यादा चिंता, तनाव या परेशानी रहती है?',t:'text'},
+{id:'16.2',q:'यह परेशानी कब से चल रही है?',t:'text'},
+{id:'16.2a',q:'क्या यह परेशानी लगातार रहती है या कभी-कभी ज्यादा हो जाती है?',t:'text'},
+{id:'16.3',q:'इस तनाव या चिंता की वजह से आपके रोज़ के काम, नींद या खाने पर कोई असर पड़ा है?',t:'yn'},
+{id:'16.3a',q:'किस तरह का असर पड़ा है?',t:'text',if:['16.3','हाँ']},
+{id:'16.4',q:'पिछले कुछ समय से आपका मन कैसा रहता है?',t:'text'},
+{id:'16.4a',q:'क्या आपको पहले जिन चीज़ों में खुशी मिलती थी, उनमें अब भी उतनी ही रुचि रहती है?',t:'yn',if:['16.4','low']},
+{id:'16.5',q:'क्या आपको बार-बार ऐसी चिंता या घबराहट होती है जिसे रोकना मुश्किल लगता है?',t:'yn'},
+{id:'16.5a',q:'क्या इससे आपकी नींद, काम या रोज़मर्रा की जिंदगी प्रभावित होती है?',t:'yn',if:['16.5','हाँ']},
+{id:'16.6',q:'तनाव या चिंता के समय क्या आपका दिल तेज धड़कता है, पसीना आता है, हाथ कांपते हैं, सांस तेज चलती है या पेट में परेशानी होती है?',t:'text'},
+{id:'16.7',q:'जब आपको कोई परेशानी होती है, तो क्या आपके पास ऐसा कोई व्यक्ति है जिससे आप खुलकर बात कर सकें?',t:'yn'},
+{id:'16.8',q:'क्या आपको अक्सर ऐसा लगता है कि आप अकेले हैं या आपके पास बात करने वाला कोई नहीं है?',t:'yn'},
+{id:'16.9',q:'क्या किसी बीमार या जरूरतमंद व्यक्ति की देखभाल की जिम्मेदारी की वजह से आपको बहुत तनाव रहता है?',t:'yn'},
+{id:'16.10',q:'मैं आपसे मन और भावनाओं से जुड़े कुछ और प्रश्न पूछना चाहता/चाहती हूँ। क्या आप इनका उत्तर देना चाहेंगे?',t:'yn'},
+{id:'16.10a',q:'Validated depression/anxiety screening इस चरण में करें।',t:'text',if:['16.10','हाँ']},
+{id:'16.11',q:'जब आपको तनाव होता है तो आपको किस चीज़ से सबसे ज्यादा राहत मिलती है?',t:'text'},
+{id:'16.12',q:'अगर डॉक्टर को लगे कि इससे आपको फायदा हो सकता है, तो क्या आप किसी counsellor या mental-health professional से बात करना चाहेंगे?',t:'choice',opts:['हाँ','नहीं','पता नहीं']},
+{id:'16.13',q:'मैंने आपकी तनाव और मन से जुड़ी जानकारी इस तरह समझी है। क्या इसमें कोई गलती है या कोई महत्वपूर्ण बात छूट गई है?',t:'yn'},
+{id:'16.13a',q:'कृपया बताइए क्या सुधार या महत्वपूर्ण बात जोड़नी है।',t:'text',if:['16.13','हाँ']},
+{id:'16.14',q:'क्या आप तनाव, मन या भावनाओं के बारे में कोई और ऐसी जानकारी देना चाहते हैं जो हमने अभी तक नहीं पूछी है?',t:'yn'},
+{id:'16.14a',q:'कृपया बताइए।',t:'text',if:['16.14','हाँ']}
+];
+const L={};S.forEach(s=>L[s.id]=s.q);
+function ok(s){if(!s.if)return true;return A[s.if[0]]===s.if[1]}
+function esc(x){return String(x??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+function render(){while(i<S.length&&!ok(S[i]))i++;if(i>=S.length)return report();let s=S[i];let h='<div class="q"><b>'+s.id+'</b><br>'+esc(s.q)+'</div>';if(s.t==='yn')h+='<button class="btn" onclick="ans(\'हाँ\')">हाँ</button><button class="btn" onclick="ans(\'नहीं\')">नहीं</button>';else if(s.t==='choice')h+=s.opts.map(o=>'<button class="btn" onclick="ans(\''+o+'\')">'+o+'</button>').join('');else h+='<textarea id="x"></textarea><br><button class="btn" onclick="txt()">आगे</button>';app.innerHTML=h;let x=document.getElementById('x');if(x)x.focus()}
+function ans(v){A[S[i].id]=v;next()}function txt(){A[S[i].id]=document.getElementById('x').value.trim();next()}function next(){i++;render()}
+function summary(){let r='';Object.keys(A).forEach(k=>{r+='<tr><th>'+esc(L[k]||k)+'</th><td>'+esc(A[k])+'</td></tr>'});return '<table>'+r+'</table>'}
+function report(){let safety='';let screening=A['16.10']==='हाँ';if(A['16.10a']&&A['16.10a']!=='')safety='<div class="flag"><b>Clinical note:</b> Validated screening was selected; record the validated instrument and score/result separately. Any concerning safety response requires immediate staff notification and the established safety pathway.</div>';else safety='<div class="ok"><b>Section 16 recorded.</b></div>';app.innerHTML='<h2>Clinician Report — Section 16: Stress, Emotional & Psychological History</h2>'+safety+'<p><b>Screening requested:</b> '+esc(A['16.10']||'Not recorded')+'<br><b>Social support:</b> '+esc(A['16.7']||'Not recorded')+'<br><b>Loneliness:</b> '+esc(A['16.8']||'Not recorded')+'<br><b>Caregiver stress:</b> '+esc(A['16.9']||'Not recorded')+'<br><b>Additional information:</b> '+esc(A['16.14a']||'None added')+'</p>'+summary()+'<button class="btn" onclick="window.print()">Print / Save as PDF</button><button class="btn" onclick="location.reload()">Start Again</button>'}
+render();</script></div></body></html>
