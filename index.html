@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JeevSetu — Master Integration 1 — Sections 1 + 4</title>
+<style>
+body{font-family:Arial,sans-serif;margin:0;background:#f4f8f7;color:#173b35}
+header{background:#176653;color:#fff;padding:18px}
+main{max-width:1100px;margin:auto;padding:14px}
+.card{background:#fff;border-radius:14px;padding:16px;margin:14px 0;box-shadow:0 2px 8px #0001}
+button{border:0;border-radius:9px;padding:10px 14px;background:#176653;color:#fff;font-weight:700;margin:4px;cursor:pointer}
+button.secondary{background:#dcebe7;color:#173b35}
+iframe{width:100%;height:760px;border:1px solid #cbded9;border-radius:12px;background:#fff}
+pre{white-space:pre-wrap;background:#f7faf9;padding:14px;border-radius:10px}
+.status{padding:10px;border-radius:9px;background:#eef7f4}
+</style>
+</head>
+<body>
+<header>
+<h1>JeevSetu — Master Integration 1</h1>
+<div>Sections 1 + 4 | Independent modules + one Master Clinical Record</div>
+</header>
+<main>
+<div class="card">
+<h2>Integration status</h2>
+<div id="status" class="status">Loading saved section data…</div>
+<button onclick="refreshMaster()">Refresh Master Record</button>
+<button class="secondary" onclick="clearMaster()">Clear integration bridge only</button>
+</div>
+
+<div class="card">
+<h2>Step 1 — Section 1: Patient Identification & HPI</h2>
+<p>Complete Section 1 first. It remains an independent module.</p>
+<iframe src="section1/index.html" title="JeevSetu Section 1"></iframe>
+</div>
+
+<div class="card">
+<h2>Step 2 — Section 4: Family History</h2>
+<p>Complete Section 4 after Section 1. Its original Section 4 clinical note remains available inside the module.</p>
+<iframe src="section4/index.html" title="JeevSetu Section 4"></iframe>
+</div>
+
+<div class="card">
+<h2>Master Clinical Record — Sections 1 + 4</h2>
+<p>This is the integrated record. It does not replace the independent section data.</p>
+<pre id="masterNote">Complete and save both sections, then tap Refresh Master Record.</pre>
+</div>
+</main>
+
+<script>
+function esc(v){
+ return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
+}
+function getJson(k){
+ try{return JSON.parse(localStorage.getItem(k)||"null")}catch(e){return null}
+}
+function refreshMaster(){
+ const s1=getJson("jeevsetu_master_section1");
+ const s4=getJson("jeevsetu_master_section4");
+ const status=document.getElementById("status");
+ if(!s1 && !s4){
+   status.textContent="No master bridge data yet. Complete Section 1 and Section 4.";
+   document.getElementById("masterNote").textContent="No integrated data yet.";
+   return;
+ }
+ status.innerHTML=
+   "Section 1: "+(s1?"✅ saved":"⏳ not saved")+
+   " &nbsp; | &nbsp; Section 4: "+(s4?"✅ saved":"⏳ not saved")+
+   (s1?.patientId?" &nbsp; | &nbsp; Patient ID: <b>"+esc(s1.patientId)+"</b>":"");
+ const lines=[];
+ lines.push("JeevSetu — MASTER CLINICAL RECORD");
+ lines.push("Sections integrated: 1 + 4");
+ lines.push("");
+ if(s1){
+   lines.push("SECTION 1 — PATIENT IDENTIFICATION & COMMUNICATION");
+   lines.push("Patient ID: "+(s1.patientId||"उपलब्ध नहीं"));
+   lines.push("मरीज का नाम: "+(s1.patientName||"उपलब्ध नहीं"));
+   lines.push("Mobile: "+(s1.mobile||"उपलब्ध नहीं"));
+   lines.push("उम्र: "+(s1.age||"उपलब्ध नहीं"));
+   lines.push("लिंग: "+(s1.sex||"उपलब्ध नहीं"));
+   lines.push("पता: "+(s1.permanentAddress||"उपलब्ध नहीं"));
+   if(s1.currentAddress) lines.push("वर्तमान पता: "+s1.currentAddress);
+   lines.push("राज्य: "+(s1.state||"उपलब्ध नहीं"));
+   lines.push("जिला: "+(s1.district||"उपलब्ध नहीं"));
+   lines.push("ब्लॉक/तहसील: "+(s1.block||"उपलब्ध नहीं"));
+   lines.push("गांव/कस्बा: "+(s1.village||"उपलब्ध नहीं"));
+   lines.push("केंद्र: "+(s1.centre||"उपलब्ध नहीं"));
+   lines.push("पसंदीदा भाषा: "+(s1.preferredLanguage||"उपलब्ध नहीं"));
+   lines.push("शिक्षा: "+(s1.education||"उपलब्ध नहीं"));
+   lines.push("जानकारी देने वाला: "+(s1.historian||"उपलब्ध नहीं"));
+   if(s1.relationship) lines.push("मरीज से संबंध: "+s1.relationship);
+   if(s1.complaints?.length){
+     lines.push("");
+     lines.push("COMPLAINTS / HPI");
+     s1.complaints.forEach((c,i)=>{
+       lines.push("शिकायत "+(i+1)+": "+(c.complaint||""));
+       if(c.hpi){
+         Object.entries(c.hpi).forEach(([k,v])=>lines.push("  "+k+": "+v));
+       }
+     });
+   }
+   lines.push("");
+ }
+ if(s4){
+   lines.push("SECTION 4 — FAMILY HISTORY");
+   if(s4.clinicalNote) lines.push(s4.clinicalNote);
+   else lines.push(JSON.stringify(s4.data,null,2));
+ }
+ lines.push("");
+ lines.push("NOTE: This Master Clinical Record is an integration layer. Original Section 1 and Section 4 records remain separately available for clinician cross-checking.");
+ document.getElementById("masterNote").textContent=lines.join("\n");
+ localStorage.setItem("jeevsetu_master_integrated_1", JSON.stringify({
+   sections:[1,4], section1:s1, section4:s4, generatedAt:new Date().toISOString(),
+   note:lines.join("\n")
+ }));
+}
+function clearMaster(){
+ localStorage.removeItem("jeevsetu_master_section1");
+ localStorage.removeItem("jeevsetu_master_section4");
+ localStorage.removeItem("jeevsetu_master_integrated_1");
+ refreshMaster();
+}
+window.addEventListener("message",e=>{
+ if(e.data?.type==="JEEVSETU_SECTION1_SAVED" || e.data?.type==="JEEVSETU_SECTION4_SAVED") refreshMaster();
+});
+refreshMaster();
+</script>
+</body>
+</html>
