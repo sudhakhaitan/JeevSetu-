@@ -1,0 +1,1 @@
+JeevSetu Master Sections 1–21 integrated build V2-5-71. Sections 1–20 preserved from uploaded master V2-5-70; Section 21 socioeconomic/living circumstances integrated as final section. Final Master Clinical Note is generated only after Section 21.
