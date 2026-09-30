@@ -1,0 +1,1 @@
+JeevSetu Master Sections 1–20 integrated. Sections 17–20 adapted from the supplied module. Individual Clinical Note generation is disabled; final Master Clinical Note remains reserved for Section 21 completion.
